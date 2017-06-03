@@ -1,6 +1,3 @@
-[package]
-name = "mock_trait"
-version = "0.1.0"
-authors = ["CodeSandwich <igor.zuk@protonmail.com>"]
+[workspace]
+members = ["mock_trait"]
 
-[dependencies]
