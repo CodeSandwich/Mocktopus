@@ -1,0 +1,7 @@
+[package]
+name = "mock_macro_test"
+version = "0.1.0"
+authors = ["CodeSandwich <igor.zuk@protonmail.com>"]
+
+[dependencies]
+mock_macro = { path = "../mock_macro" }

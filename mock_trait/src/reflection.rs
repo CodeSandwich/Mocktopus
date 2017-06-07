@@ -176,7 +176,7 @@ pub fn test_e() {
     println!("\nEStruct2a");
     let e_struct2a = EStruct2(&*s, 1.2f32);
     e_struct2a.e_fn(1, &ss, 2i64, 3u64);
-    println!("outer {:?}", EStruct2::<&str, f32>::e_fn::<i64, u64>.get_paint_id());
+        println!("outer {:?}", EStruct2::<&str, f32>::e_fn::<i64, u64>.get_paint_id());
 
     println!("\nDude what");
     println!("outer {:?}", dude_what.get_paint_id());
