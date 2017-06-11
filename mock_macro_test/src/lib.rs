@@ -1,6 +1,10 @@
 #![feature(proc_macro)]
 extern crate mock_macro;
-use mock_macro::{mock_it};
+extern crate mock_trait;
+
+use mock_macro::mock_it;
+
+mod reflection;
 
 //#[mock_it]
 pub fn a() {

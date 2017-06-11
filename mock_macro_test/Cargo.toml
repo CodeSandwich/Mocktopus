@@ -5,3 +5,4 @@ authors = ["CodeSandwich <igor.zuk@protonmail.com>"]
 
 [dependencies]
 mock_macro = { path = "../mock_macro" }
+mock_trait = { path = "../mock_trait" }

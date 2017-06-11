@@ -1,3 +1,3 @@
 [workspace]
-members = ["mock_macro", "mock_macro_test", "mock_trait"]
+members = ["mock_macro", "mock_trait", "mock_macro_test"]
 
