@@ -1,4 +1,4 @@
-#![feature(unboxed_closures, get_type_id)]
+#![feature(fn_traits, get_type_id, unboxed_closures)]
 
 mod mock_trait;
 mod mock_store;

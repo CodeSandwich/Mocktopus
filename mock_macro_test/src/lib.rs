@@ -4,7 +4,7 @@ extern crate mock_trait;
 
 use mock_macro::mock_it;
 
-mod reflection;
+//mod reflection;
 
 //#[mock_it]
 pub fn a() {
