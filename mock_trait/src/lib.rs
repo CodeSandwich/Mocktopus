@@ -1,8 +1,10 @@
 #![feature(fn_traits, get_type_id, unboxed_closures)]
 
+#[cfg(test)]
+#[macro_use]
+extern crate lazy_static;
+
 mod mock_trait;
-mod mock_store;
 
 pub use mock_trait::{MockResult, MockTrait};
-use mock_store::MOCK_STORE;
 

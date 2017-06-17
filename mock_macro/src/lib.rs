@@ -37,4 +37,14 @@ fn inject_fn(fn_decl: &mut Box<FnDecl>, unsafety: &mut Unsafety, constness: &mut
              abi: &mut Option<Abi>, generics: &mut Generics, block: &mut Box<Block>) {
 //    let args = fn_decl.as_mut().inputs;
 
+    //DO NOT MOCK if any argument is `_`
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn fake_test() {
+    }
 }
