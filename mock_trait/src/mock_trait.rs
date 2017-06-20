@@ -146,4 +146,27 @@ mod tests {
             assert_eq!(2, mock_injected_function(1u32, 2));
         }
     }
+
+    mod mocks_generic_function_for_generic_trait_in_generic_struct {
+        use super::*;
+        use std::fmt::Display;
+
+        trait GT<T: Display, U: Display> {
+            fn gf<V: Display>(t: T, u: U, v: V) {
+                println!("Default t: {}, u: {}, v: {}", t, u, v);
+            }
+        }
+
+        struct DS<W: Display> (W);
+
+        impl<T: Display, W: Display> GT<&'a str, U> for DS<W> {}
+
+        struct CS<W: Display> (W);
+
+        impl<'a, W: Display> GT<&'a str> for CS<W> {
+            fn gf<U: Display, W>(t: &str, u: U, v: W) {
+                println!("Custom t: {}, u: {}, v: {}", t, u, v);
+            }
+        }
+    }
 }
