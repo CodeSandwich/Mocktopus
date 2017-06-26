@@ -8,3 +8,7 @@ pub fn mod_a_mod_b_fn() {
 //    };
     println!("Hello mod a mod b fn!");
 }
+
+fn ignoring(arg_1: u32, mut arg_2: i32, mut arg_3: &i32, _: f64) {
+    assert!(arg_1 == 0);
+}
