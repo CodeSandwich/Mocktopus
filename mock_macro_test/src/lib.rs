@@ -3,6 +3,7 @@ extern crate mock_macro;
 extern crate mock_trait;
 
 use mock_macro::mock_it;
+use mock_trait::{MockResult, MockTrait};
 
 //mod reflection;
 

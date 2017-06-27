@@ -24,8 +24,8 @@ pub fn mock_it(_: TokenStream, token_stream: TokenStream) -> TokenStream {
 
 fn inject_fns_in_item(item: &mut Item) {
     match item.node {
-        ItemKind::Fn(ref mut decl, ref mut unsafety, ref mut constness, ref mut abi, ref mut generics, ref mut block) =>
-            inject_fn(&item.ident, decl, constness, generics, block),
+        ItemKind::Fn(ref mut decl, ref mut unsafety, ref constness, _, ref generics, ref mut block) =>
+            inject_fn(&item.ident, &mut decl.inputs, constness, generics, block),
         ItemKind::Mod(Some(ref mut items)) => for item in items {inject_fns_in_item(item)},
 //        ItemKind::Trait(ref mut unsafety, ref mut generics, ref mut ty_param_bound, ref mut items) => unimplemented!(),
 //        ItemKind::Impl(ref mut unsafety, ref mut impl_polarity, ref mut generics, ref mut path, ref mut ty, ref mut items) => unimplemented!(),
@@ -33,8 +33,7 @@ fn inject_fns_in_item(item: &mut Item) {
     }
 }
 
-fn inject_fn(ident: &Ident, inputs: &mut Vec<FnArg>, fn_decl: &mut Box<FnDecl>, constness: &Constness, generics: &mut Generics,
-             block: &mut Box<Block>) {
+fn inject_fn(ident: &Ident, inputs: &mut Vec<FnArg>, constness: &Constness, _generics: &Generics, block: &mut Box<Block>) {
     if *constness == Constness::Const {
         return
     }
@@ -60,46 +59,44 @@ fn unignore_fn_args(inputs: &mut Vec<FnArg>) {
 }
 
 fn inject_fn_block(ident: &Ident, inputs: &Vec<FnArg>, block: &mut Box<Block>) {
-    let arg_names = args_to_names(inputs).unwrap();
-    let s = format!("{{let ({}) = match {}.call_mock(({0})) {{\
-            MockResult::Continue(input) => input,\
-            MockResult::Return(result) => return result,\
-        }};}}", "a, b, c, ", &ident);
-    let expr = syn::parse_expr(&s).unwrap();
-    let stmts = match expr.node {
+    let arg_names = args_to_names(inputs);
+    let header_str = format!(
+        "{{\
+            let ({0}) = {{\
+                use mock_trait::{{MockResult, MockTrait}};\
+                match {1}.call_mock(({0})) {{\
+                    MockResult::Continue(input) => input,\
+                    MockResult::Return(result) => return result,\
+                }}\
+            }};\
+        }}", arg_names, &ident);
+    let header_expr = syn::parse_expr(&header_str).unwrap();
+    let header_stmts = match header_expr.node {
         ExprKind::Block(_, block) => block.stmts,
         _ => unreachable!(),
     };
+    block.stmts.extend(header_stmts);
 
 
-    let mut tokens = Tokens::new();
-    for stmt in stmts {
-        stmt.to_tokens(&mut tokens);
-    }
-    println!("{}", tokens.as_str());
+//    let mut tokens = Tokens::new();
+//    for stmt in header_stmts {
+//        stmt.to_tokens(&mut tokens);
+//    }
+//    println!("{}", tokens.as_str());
 }
 
-fn args_to_names(inputs: &Vec<FnArg>) -> Result<String, ()> {
-    let mut names = String::new();
-    println!("INPUTS");
-    for input in inputs {
-        println!("INPUT {:?}", input);
-//        match input {
-//            FnArg::SelfRef(_) | FnArg::SelfValue(_) => names.push_str("self, "),
-//            FnArg::Captured(ref pattern, _) => match pattern {
-//
-//            },
-//            FnArg::Ignored(_) => names.push("IGNORED, "),
-//        }
-    }
-    Ok(names)
+fn args_to_names(inputs: &Vec<FnArg>) -> String {
+    inputs.iter()
+        .fold(String::new(), |mut result, input| {
+            match *input {
+                FnArg::SelfRef(_, _) | FnArg::SelfValue(_) => result.push_str("self"),
+                FnArg::Captured(Pat::Ident(_, ref ident, None), _) => result.push_str(ident.as_ref()),
+                _ => panic!("Invalid function input '{:?}'", input),
+            };
+            result.push_str(", ");
+            result
+        })
 }
-
-//    let (input,) = match mock_injected_function.call_mock((input, )) {
-//        MockResult::Continue(input) => input,
-//        MockResult::Return(result) => return result,
-//    };
-//}
 
 #[cfg(test)]
 mod tests {
