@@ -11,6 +11,14 @@ version = "0.2.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
+name = "mock_experiment"
+version = "0.1.0"
+dependencies = [
+ "mock_macro 0.1.0",
+ "mock_trait 0.1.0",
+]
+
+[[package]]
 name = "mock_macro"
 version = "0.1.0"
 dependencies = [

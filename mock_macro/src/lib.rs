@@ -6,6 +6,7 @@ extern crate quote;
 
 use proc_macro::TokenStream;
 use quote::{Tokens, ToTokens};
+use std::mem;
 use std::str::FromStr;
 use syn::{Abi, BindingMode, Block, Constness, ExprKind, FnArg, FnDecl, FunctionRetTy, Generics, Ident, Item, ItemKind,
           Mutability, Pat, Unsafety};
@@ -61,21 +62,22 @@ fn unignore_fn_args(inputs: &mut Vec<FnArg>) {
 fn inject_fn_block(ident: &Ident, inputs: &Vec<FnArg>, block: &mut Box<Block>) {
     let arg_names = args_to_names(inputs);
     let header_str = format!(
-        "{{\
-            let ({0}) = {{\
-                use mock_trait::{{MockResult, MockTrait}};\
-                match {1}.call_mock(({0})) {{\
-                    MockResult::Continue(input) => input,\
-                    MockResult::Return(result) => return result,\
-                }}\
-            }};\
-        }}", arg_names, &ident);
+        r#"{{
+            let ({0}) = {{
+                use mock_trait::{{MockResult, MockTrait}};
+                match {1}.call_mock(({0})) {{
+                    MockResult::Continue(input) => input,
+                    MockResult::Return(result) => return result,
+                }}
+            }};
+        }}"#, arg_names, ident);
     let header_expr = syn::parse_expr(&header_str).unwrap();
     let header_stmts = match header_expr.node {
         ExprKind::Block(_, block) => block.stmts,
         _ => unreachable!(),
     };
-    block.stmts.extend(header_stmts);
+    let mut body_stmts = mem::replace(&mut block.stmts, header_stmts);
+    block.stmts.append(&mut body_stmts);
 
 
 //    let mut tokens = Tokens::new();
