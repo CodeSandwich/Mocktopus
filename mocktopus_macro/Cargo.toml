@@ -1,5 +1,5 @@
 [package]
-name = "mock_macro"
+name = "mocktopus_macro"
 version = "0.1.0"
 authors = ["CodeSandwich <igor.zuk@protonmail.com>"]
 

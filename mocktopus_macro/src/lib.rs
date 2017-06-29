@@ -12,7 +12,7 @@ use syn::{Abi, BindingMode, Block, Constness, ExprKind, FnArg, FnDecl, FunctionR
           Mutability, Pat, Unsafety};
 
 #[proc_macro_attribute]
-pub fn mock_it(_: TokenStream, token_stream: TokenStream) -> TokenStream {
+pub fn inject_mocks(_: TokenStream, token_stream: TokenStream) -> TokenStream {
     let in_string = token_stream.to_string();
     let mut parsed = syn::parse_item(&in_string).unwrap();
     inject_fns_in_item(&mut parsed);
@@ -64,7 +64,7 @@ fn inject_fn_block(ident: &Ident, inputs: &Vec<FnArg>, block: &mut Box<Block>) {
     let header_str = format!(
         r#"{{
             let ({0}) = {{
-                use mock_trait::{{MockResult, MockTrait}};
+                use mocktopus::{{MockResult, MockTrait}};
                 match {1}.call_mock(({0})) {{
                     MockResult::Continue(input) => input,
                     MockResult::Return(result) => return result,

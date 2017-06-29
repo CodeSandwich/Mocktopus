@@ -1,8 +1,9 @@
 [root]
-name = "mock_trait"
+name = "mocktopus_test"
 version = "0.1.0"
 dependencies = [
- "lazy_static 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "mocktopus 0.1.0",
+ "mocktopus_macro 0.1.0",
 ]
 
 [[package]]
@@ -11,27 +12,26 @@ version = "0.2.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
-name = "mock_experiment"
+name = "mock_macro_test"
 version = "0.1.0"
 dependencies = [
- "mock_macro 0.1.0",
- "mock_trait 0.1.0",
+ "mocktopus 0.1.0",
+ "mocktopus_macro 0.1.0",
 ]
 
 [[package]]
-name = "mock_macro"
+name = "mocktopus"
+version = "0.1.0"
+dependencies = [
+ "lazy_static 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "mocktopus_macro"
 version = "0.1.0"
 dependencies = [
  "quote 0.3.15 (registry+https://github.com/rust-lang/crates.io-index)",
  "syn 0.11.11 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "mock_macro_test"
-version = "0.1.0"
-dependencies = [
- "mock_macro 0.1.0",
- "mock_trait 0.1.0",
 ]
 
 [[package]]

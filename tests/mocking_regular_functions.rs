@@ -1,13 +1,13 @@
 #![feature(proc_macro)]
 
-extern crate mock_macro;
-extern crate mock_trait;
+extern crate mocktopus_macro;
+extern crate mocktopus;
 
-#[mock_it]
+#[inject_mocks]
 mod regular_functions;
 
-use mock_macro::mock_it;
-use mock_trait::*;
+use mocktopus_macro::inject_mocks;
+use mocktopus::*;
 use regular_functions::*;
 
 mod no_args_no_ret_panics {

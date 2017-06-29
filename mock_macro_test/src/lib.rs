@@ -1,9 +1,9 @@
 #![feature(proc_macro)]
-extern crate mock_macro;
-extern crate mock_trait;
+extern crate mocktopus_macro;
+extern crate mocktopus;
 
-use mock_macro::mock_it;
-use mock_trait::{MockResult, MockTrait};
+use mocktopus_macro::mock_it;
+use mocktopus::{MockResult, MockTrait};
 
 //mod reflection;
 
