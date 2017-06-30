@@ -14,7 +14,11 @@ use syn::{Abi, BindingMode, Block, Constness, ExprKind, FnArg, FnDecl, FunctionR
 #[proc_macro_attribute]
 pub fn inject_mocks(_: TokenStream, token_stream: TokenStream) -> TokenStream {
     let in_string = token_stream.to_string();
-    let mut parsed = syn::parse_item(&in_string).unwrap();
+    // If code is unparsable, there is no need to panic, compiler will fail anyway, with better message
+    let mut parsed = match syn::parse_item(&in_string) {
+        Ok(parsed) => parsed,
+        Err(_) => return token_stream,
+    };
     inject_fns_in_item(&mut parsed);
     let mut tokens = Tokens::new();
     parsed.to_tokens(&mut tokens);
