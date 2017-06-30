@@ -8,5 +8,5 @@ mocktopus_macro = { path = "mocktopus_macro" }
 mocktopus = { path = "mocktopus" }
 
 [workspace]
-members = ["mock_macro_test", "mocktopus", "mocktopus_macro"]
+members = ["mocktopus", "mocktopus_macro"]
 
