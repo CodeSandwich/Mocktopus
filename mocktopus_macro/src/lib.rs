@@ -8,8 +8,7 @@ use proc_macro::TokenStream;
 use quote::{Tokens, ToTokens};
 use std::mem;
 use std::str::FromStr;
-use syn::{Abi, BindingMode, Block, Constness, ExprKind, FnArg, FnDecl, FunctionRetTy, Generics, Ident, Item, ItemKind,
-          Mutability, Pat, Unsafety};
+use syn::{BindingMode, Block, Constness, ExprKind, FnArg, Generics, Ident, Item, ItemKind, Mutability, Pat};
 
 #[proc_macro_attribute]
 pub fn inject_mocks(_: TokenStream, token_stream: TokenStream) -> TokenStream {
@@ -29,7 +28,7 @@ pub fn inject_mocks(_: TokenStream, token_stream: TokenStream) -> TokenStream {
 
 fn inject_fns_in_item(item: &mut Item) {
     match item.node {
-        ItemKind::Fn(ref mut decl, ref mut unsafety, ref constness, _, ref generics, ref mut block) =>
+        ItemKind::Fn(ref mut decl, _, ref constness, _, ref generics, ref mut block) =>
             inject_fn(&item.ident, &mut decl.inputs, constness, generics, block),
         ItemKind::Mod(Some(ref mut items)) => for item in items {inject_fns_in_item(item)},
 //        ItemKind::Trait(ref mut unsafety, ref mut generics, ref mut ty_param_bound, ref mut items) => unimplemented!(),
@@ -38,12 +37,37 @@ fn inject_fns_in_item(item: &mut Item) {
     }
 }
 
-fn inject_fn(ident: &Ident, inputs: &mut Vec<FnArg>, constness: &Constness, _generics: &Generics, block: &mut Box<Block>) {
+fn inject_fn(ident: &Ident, inputs: &mut Vec<FnArg>, constness: &Constness, generics: &Generics, block: &mut Box<Block>) {
     if *constness == Constness::Const {
         return
     }
     unignore_fn_args(inputs);
-    inject_fn_block(ident, inputs, block)
+    let arg_names = args_to_names(inputs);
+    let generic_names = generics_to_names(generics);
+    let header_str = format!(
+        r#"{{
+            let ({1}) = {{
+                use mocktopus::{{MockResult, MockTrait}};
+                match {0}{2}.call_mock(({1})) {{
+                    MockResult::Continue(input) => input,
+                    MockResult::Return(result) => return result,
+                }}
+            }};
+        }}"#, ident, arg_names, generic_names);
+    let header_expr = syn::parse_expr(&header_str).unwrap();
+    let header_stmts = match header_expr.node {
+        ExprKind::Block(_, block) => block.stmts,
+        _ => unreachable!(),
+    };
+
+    //    let mut tokens = Tokens::new();
+    //    for stmt in &header_stmts {
+    //        stmt.to_tokens(&mut tokens);
+    //    }
+    //    println!("{}", tokens.as_str());
+
+    let mut body_stmts = mem::replace(&mut block.stmts, header_stmts);
+    block.stmts.append(&mut body_stmts);
 }
 
 fn unignore_fn_args(inputs: &mut Vec<FnArg>) {
@@ -63,34 +87,6 @@ fn unignore_fn_args(inputs: &mut Vec<FnArg>) {
     }
 }
 
-fn inject_fn_block(ident: &Ident, inputs: &Vec<FnArg>, block: &mut Box<Block>) {
-    let arg_names = args_to_names(inputs);
-    let header_str = format!(
-        r#"{{
-            let ({0}) = {{
-                use mocktopus::{{MockResult, MockTrait}};
-                match {1}.call_mock(({0})) {{
-                    MockResult::Continue(input) => input,
-                    MockResult::Return(result) => return result,
-                }}
-            }};
-        }}"#, arg_names, ident);
-    let header_expr = syn::parse_expr(&header_str).unwrap();
-    let header_stmts = match header_expr.node {
-        ExprKind::Block(_, block) => block.stmts,
-        _ => unreachable!(),
-    };
-    let mut body_stmts = mem::replace(&mut block.stmts, header_stmts);
-    block.stmts.append(&mut body_stmts);
-
-
-//    let mut tokens = Tokens::new();
-//    for stmt in header_stmts {
-//        stmt.to_tokens(&mut tokens);
-//    }
-//    println!("{}", tokens.as_str());
-}
-
 fn args_to_names(inputs: &Vec<FnArg>) -> String {
     inputs.iter()
         .fold(String::new(), |mut result, input| {
@@ -102,6 +98,19 @@ fn args_to_names(inputs: &Vec<FnArg>) -> String {
             result.push_str(", ");
             result
         })
+}
+
+fn generics_to_names(generics: &Generics) -> String {
+    if generics.ty_params.is_empty() {
+        return String::new()
+    }
+    let mut result = "::<".to_string();
+    for ty_param in &generics.ty_params {
+        result.push_str(&ty_param.ident.as_ref());
+        result.push_str(", ");
+    }
+    result.push('>');
+    result
 }
 
 #[cfg(test)]
