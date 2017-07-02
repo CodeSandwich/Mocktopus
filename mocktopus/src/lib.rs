@@ -59,3 +59,31 @@ impl<T, O, F: FnOnce<T, Output=O>> Mockable<T, O> for F {
         (||()).get_type_id()
     }
 }
+
+//mod tests {
+//    use super::*;
+//    use std::str::FromStr;
+//
+//    pub fn single_generic_fn<T: ToString>(t: T) -> String {
+//        let (t, ) =
+//            match Mockable::call_mock(&single_generic_fn, (t,)) {
+//                MockResult::Continue(input) => input,
+//                MockResult::Return(result) => return result,
+//            };
+//        t.to_string()
+//    }
+//
+//    pub fn single_generic_ret_fn<T: FromStr>(s: &str) -> T {
+//
+//        s.parse().ok().unwrap()
+//    }
+//
+//    #[test]
+//    fn asdf() {
+//        single_generic_fn::<u32>.set_mock(|_| 123);
+//
+//        let t = 1u32;
+//
+//
+//    }
+//}

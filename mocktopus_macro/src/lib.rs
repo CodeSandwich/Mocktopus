@@ -48,8 +48,8 @@ fn inject_fn(ident: &Ident, inputs: &mut Vec<FnArg>, constness: &Constness, gene
     let header_str = format!(
         r#"{{
             let ({}) = {{
-                use mocktopus::{{Mockable, MockResult}};
-                match {}{}.call_mock(({})) {{
+                use mocktopus::*;
+                match Mockable::call_mock(&{}{}, (({}))) {{
                     MockResult::Continue(input) => input,
                     MockResult::Return(result) => return result,
                 }}
