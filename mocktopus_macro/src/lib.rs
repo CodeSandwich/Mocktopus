@@ -41,30 +41,31 @@ fn inject_fn(ident: &Ident, inputs: &mut Vec<FnArg>, constness: &Constness, gene
     if *constness == Constness::Const {
         return
     }
+    let original_arg_names = args_to_names(inputs);
     unignore_fn_args(inputs);
-    let arg_names = args_to_names(inputs);
+    let unignored_arg_names = args_to_names(inputs);
     let generic_names = generics_to_names(generics);
     let header_str = format!(
         r#"{{
-            let ({1}) = {{
-                use mocktopus::{{MockResult, MockTrait}};
-                match {0}{2}.call_mock(({1})) {{
+            let ({}) = {{
+                use mocktopus::{{Mockable, MockResult}};
+                match {}{}.call_mock(({})) {{
                     MockResult::Continue(input) => input,
                     MockResult::Return(result) => return result,
                 }}
             }};
-        }}"#, ident, arg_names, generic_names);
+        }}"#, original_arg_names, ident, generic_names, unignored_arg_names);
     let header_expr = syn::parse_expr(&header_str).unwrap();
     let header_stmts = match header_expr.node {
         ExprKind::Block(_, block) => block.stmts,
         _ => unreachable!(),
     };
 
-    //    let mut tokens = Tokens::new();
-    //    for stmt in &header_stmts {
-    //        stmt.to_tokens(&mut tokens);
-    //    }
-    //    println!("{}", tokens.as_str());
+//    let mut tokens = Tokens::new();
+//    for stmt in &header_stmts {
+//        stmt.to_tokens(&mut tokens);
+//    }
+//    println!("{}", tokens.as_str());
 
     let mut body_stmts = mem::replace(&mut block.stmts, header_stmts);
     block.stmts.append(&mut body_stmts);
@@ -92,6 +93,7 @@ fn args_to_names(inputs: &Vec<FnArg>) -> String {
         .fold(String::new(), |mut result, input| {
             match *input {
                 FnArg::SelfRef(_, _) | FnArg::SelfValue(_) => result.push_str("self"),
+                FnArg::Captured(Pat::Wild, _) => result.push_str("_"),
                 FnArg::Captured(Pat::Ident(_, ref ident, None), _) => result.push_str(ident.as_ref()),
                 _ => panic!("Invalid function input '{:?}'", input),
             };

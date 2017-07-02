@@ -5,7 +5,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::mem::transmute;
 
-pub trait MockTrait<T, O> {
+pub trait Mockable<T, O> {
     fn set_mock<M: Fn<T, Output=MockResult<T, O>> + 'static>(&self, mock: M);
     unsafe fn set_mock_unsafe<M: Fn<T, Output=MockResult<T, O>>>(&self, mock: M);
     fn call_mock(&self, input: T) -> MockResult<T, O>;
@@ -21,7 +21,7 @@ thread_local!{
     static MOCK_STORE: RefCell<HashMap<TypeId, Box<Fn<(), Output=()>>>> = RefCell::new(HashMap::new())
 }
 
-impl<T, O, F: FnOnce<T, Output=O>> MockTrait<T, O> for F {
+impl<T, O, F: FnOnce<T, Output=O>> Mockable<T, O> for F {
     fn set_mock<M: Fn<T, Output=MockResult<T, O>> + 'static>(&self, mock: M) {
         unsafe {
             self.set_mock_unsafe(mock);
