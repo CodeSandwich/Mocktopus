@@ -32,6 +32,28 @@ macro_rules! fn_generating_macro {
 #[inject_mocks]
 fn_generating_macro!();
 
+#[inject_mocks]
+mod mod_1 {
+    pub fn mod_1_fn() -> &'static str {
+        "mod_1_fn not mocked"
+    }
+
+    pub mod mod_2 {
+        pub fn mod_2_fn() -> &'static str {
+            "mod_2_fn not mocked"
+        }
+    }
+
+    pub mod mod_3 {
+        pub fn mod_3_fn() -> &'static str {
+            "mod_3_fn not mocked"
+        }
+    }
+}
+
+#[inject_mocks]
+mod mod_file_1;
+
 mod mocks_do_not_leak_between_tests {
     use super::*;
 
@@ -101,5 +123,49 @@ mod mocking_does_not_work_for_macro_generated_fns {
         macro_generated_fn.set_mock(|| MockResult::Return(2));
 
         assert_eq!(1, macro_generated_fn());
+    }
+}
+
+mod mock_injecting_works_for_nested_mods {
+    use super::*;
+
+    #[test]
+    fn when_not_mocked_return_not_mocked_strs() {
+        assert_eq!("mod_1_fn not mocked", mod_1::mod_1_fn());
+        assert_eq!("mod_2_fn not mocked", mod_1::mod_2::mod_2_fn());
+        assert_eq!("mod_3_fn not mocked", mod_1::mod_3::mod_3_fn());
+    }
+
+    #[test]
+    fn when_mocked_return_mocked_strs() {
+        mod_1::mod_1_fn.set_mock(|| MockResult::Return("mod_1_fn mocked"));
+        mod_1::mod_2::mod_2_fn.set_mock(|| MockResult::Return("mod_2_fn mocked"));
+        mod_1::mod_3::mod_3_fn.set_mock(|| MockResult::Return("mod_3_fn mocked"));
+
+        assert_eq!("mod_1_fn mocked", mod_1::mod_1_fn());
+        assert_eq!("mod_2_fn mocked", mod_1::mod_2::mod_2_fn());
+        assert_eq!("mod_3_fn mocked", mod_1::mod_3::mod_3_fn());
+    }
+}
+
+mod mock_injecting_works_for_nested_mods_in_separate_files {
+    use super::*;
+
+    #[test]
+    fn when_not_mocked_return_not_mocked_strs() {
+        assert_eq!("mod_file_1_fn not mocked", mod_file_1::mod_file_1_fn());
+        assert_eq!("mod_file_2_fn not mocked", mod_file_1::mod_file_2::mod_file_2_fn());
+        assert_eq!("mod_file_3_fn not mocked", mod_file_1::mod_file_3::mod_file_3_fn());
+    }
+
+    #[test]
+    fn when_mocked_return_mocked_strs() {
+        mod_file_1::mod_file_1_fn.set_mock(|| MockResult::Return("mod_file_1_fn mocked"));
+        mod_file_1::mod_file_2::mod_file_2_fn.set_mock(|| MockResult::Return("mod_file_2_fn mocked"));
+        mod_file_1::mod_file_3::mod_file_3_fn.set_mock(|| MockResult::Return("mod_file_3_fn mocked"));
+
+        assert_eq!("mod_file_1_fn mocked", mod_file_1::mod_file_1_fn());
+        assert_eq!("mod_file_2_fn mocked", mod_file_1::mod_file_2::mod_file_2_fn());
+        assert_eq!("mod_file_3_fn mocked", mod_file_1::mod_file_3::mod_file_3_fn());
     }
 }
