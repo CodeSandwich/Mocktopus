@@ -1,9 +1,9 @@
 #![feature(const_fn, proc_macro)]
 
-extern crate mocktopus_macro;
+extern crate mocktopus_injector;
 extern crate mocktopus;
 
-use mocktopus_macro::inject_mocks;
+use mocktopus_injector::inject_mocks;
 use mocktopus::*;
 use std::str::FromStr;
 use std::string::ToString;
