@@ -8,17 +8,17 @@ use proc_macro::TokenStream;
 use quote::{Tokens, ToTokens};
 use std::mem;
 use std::str::FromStr;
-use syn::{BindingMode, Block, Constness, ExprKind, FnArg, Generics, Ident, Item, ItemKind, Mutability, Pat};
+use syn::{BindingMode, Block, Constness, ExprKind, FnArg, Generics, Ident, ImplItem, Item, ItemKind,
+        Mutability, Pat, Path, Ty};
 
 #[proc_macro_attribute]
 pub fn inject_mocks(_: TokenStream, token_stream: TokenStream) -> TokenStream {
     let in_string = token_stream.to_string();
-    // If code is unparsable, there is no need to panic, compiler will fail anyway, with better message
     let mut parsed = match syn::parse_item(&in_string) {
         Ok(parsed) => parsed,
         Err(_) => return token_stream,
     };
-    inject_fns_in_item(&mut parsed);
+    inject_item(&mut parsed);
     let mut tokens = Tokens::new();
     parsed.to_tokens(&mut tokens);
     let out_string = tokens.as_str();
@@ -26,47 +26,73 @@ pub fn inject_mocks(_: TokenStream, token_stream: TokenStream) -> TokenStream {
     out_token_stream
 }
 
-fn inject_fns_in_item(item: &mut Item) {
+fn inject_item(item: &mut Item) {
     match item.node {
+        ItemKind::Mod(ref mut items_opt) =>
+            inject_mod(items_opt.as_mut()),
         ItemKind::Fn(ref mut decl, _, ref constness, _, ref generics, ref mut block) =>
-            inject_fn(&item.ident, &mut decl.inputs, constness, generics, block),
-        ItemKind::Mod(Some(ref mut items)) => for item in items {inject_fns_in_item(item)},
-//        ItemKind::Trait(ref mut unsafety, ref mut generics, ref mut ty_param_bound, ref mut items) => unimplemented!(),
-//        ItemKind::Impl(ref mut unsafety, ref mut impl_polarity, ref mut generics, ref mut path, ref mut ty, ref mut items) => unimplemented!(),
+            inject_static_fn(&item.ident, &mut decl.inputs, constness, generics, block),
+        ItemKind::Impl(_, _, ref generics, ref path, ref ty, ref mut items) =>
+            inject_impl(generics, path.as_ref(), ty, items),
+        //        ItemKind::Trait(ref mut unsafety, ref mut generics, ref mut ty_param_bound, ref mut items) => unimplemented!(),
         _ => (),
     }
 }
 
-fn inject_fn(ident: &Ident, inputs: &mut Vec<FnArg>, constness: &Constness, generics: &Generics, block: &mut Box<Block>) {
+fn inject_mod(items_opt: Option<&mut Vec<Item>>) {
+    if let Some(items) = items_opt {
+        for item in items {
+            inject_item(item)
+        }
+    }
+}
+
+fn inject_impl(_generics: &Generics, path: Option<&Path>, ty: &Box<Ty>, items: &mut Vec<ImplItem>) {
+    println!("PATH\n{:#?}\nTY\n{:#?}\nITEMS\n{:#?}", path, ty, items);
+    if path.is_some() {
+        return; // no trait support yet
+    }
+
+    // impl [<path> for] ty {
+    //      <items>
+    // }
+
+
+}
+
+fn inject_static_fn(ident: &Ident, inputs: &mut Vec<FnArg>, constness: &Constness, generics: &Generics, block: &mut Box<Block>) {
     if *constness == Constness::Const {
         return
     }
+    let mut fn_name = ident.to_string();
+    append_generics(&mut fn_name, generics);
+    inject_fn(&fn_name, inputs, block);
+}
+
+fn inject_fn(fn_name: &str, inputs: &mut Vec<FnArg>, block: &mut Box<Block>) {
     let original_arg_names = args_to_names(inputs);
     unignore_fn_args(inputs);
     let unignored_arg_names = args_to_names(inputs);
-    let generic_names = generics_to_names(generics);
     let header_str = format!(
         r#"{{
             let ({}) = {{
                 use mocktopus::*;
-                match Mockable::call_mock(&{}{}, (({}))) {{
+                match Mockable::call_mock(&{}, (({}))) {{
                     MockResult::Continue(input) => input,
                     MockResult::Return(result) => return result,
                 }}
             }};
-        }}"#, original_arg_names, ident, generic_names, unignored_arg_names);
+        }}"#, original_arg_names, fn_name, unignored_arg_names);
     let header_expr = syn::parse_expr(&header_str).unwrap();
     let header_stmts = match header_expr.node {
         ExprKind::Block(_, block) => block.stmts,
         _ => unreachable!(),
     };
-
-//    let mut tokens = Tokens::new();
-//    for stmt in &header_stmts {
-//        stmt.to_tokens(&mut tokens);
-//    }
-//    println!("{}", tokens.as_str());
-
+    //    let mut tokens = Tokens::new();
+    //    for stmt in &header_stmts {
+    //        stmt.to_tokens(&mut tokens);
+    //    }
+    //    println!("{}", tokens.as_str());
     let mut body_stmts = mem::replace(&mut block.stmts, header_stmts);
     block.stmts.append(&mut body_stmts);
 }
@@ -102,58 +128,14 @@ fn args_to_names(inputs: &Vec<FnArg>) -> String {
         })
 }
 
-fn generics_to_names(generics: &Generics) -> String {
+fn append_generics(fn_name: &mut String, generics: &Generics) {
     if generics.ty_params.is_empty() {
-        return String::new()
+        return
     }
-    let mut result = "::<".to_string();
+    fn_name.push_str("::<");
     for ty_param in &generics.ty_params {
-        result.push_str(&ty_param.ident.as_ref());
-        result.push_str(", ");
+        fn_name.push_str(&ty_param.ident.as_ref());
+        fn_name.push(',');
     }
-    result.push('>');
-    result
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn fake_test() {
-//        let s = "match mock_injected_function.call_mock((input, )) {
-//            MockResult::Continue(input) => input,
-//            MockResult::Return(result) => return result,
-//        }";
-        let s = "{let (input,) = match mock_injected_function.call_mock((input, )) {
-            MockResult::Continue(input) => input,
-            MockResult::Return(result) => return result,
-        };}";
-//        let s = "let (input,) = match mock_injected_function.call_mock((input, )) {
-//            MockResult::Continue(input) => input,
-//            MockResult::Return(result) => return result,
-//        };";
-//        let expr = syn::parse_token_trees(s);
-        let expr = syn::parse_expr(s).unwrap();
-        let stmts = match expr.node {
-            ExprKind::Block(_, block) => block.stmts,
-            _ => unreachable!(),
-        };
-//        let local = Local {
-//            pub pat: Box<Pat>,
-//            pub ty: Option<Box<Ty>>,
-//
-//            /// Initializer expression to set the value, if any
-//            pub init: Option<Box<Expr>>,
-//            pub attrs: Vec<Attribute>,
-//        }
-//        let stmt = Stmt::Local(Box::new(local));
-        let mut tokens = Tokens::new();
-        for stmt in stmts {
-            stmt.to_tokens(&mut tokens);
-        }
-
-        println!("{}", tokens.as_str());
-        panic!();
-    }
+    fn_name.push('>');
 }
