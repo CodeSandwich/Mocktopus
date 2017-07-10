@@ -52,6 +52,8 @@ fn inject_impl(_generics: &Generics, path: Option<&Path>, ty: &Box<Ty>, items: &
     if path.is_some() {
         return; // no trait support yet
     }
+//    if let Ty::Path(None, Path { })
+
 
     // impl [<path> for] ty {
     //      <items>
