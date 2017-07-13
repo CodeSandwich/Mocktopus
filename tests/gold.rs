@@ -1,3 +1,35 @@
+// DONE static_methods
+// DONE generic_static_methods
+// TODO static_methods_for_generic_structs
+// TODO generic_static_methods_of_generic_structs
+
+// TODO methods
+// TODO generic_methods
+// TODO methods_of_generic_structs
+// TODO generic_methods_of_generic_structs
+
+// TODO static_methods_of_traits
+// TODO generic_static_methods_of_traits
+// TODO static_methods_for_generic_structs_of_traits
+// TODO generic_static_methods_of_generic_structs_of_traits
+
+// TODO methods_of_traits
+// TODO generic_methods_of_traits
+// TODO methods_of_generic_structs_of_traits
+// TODO generic_methods_of_generic_structs_of_traits
+
+// TODO static_methods_of_generic_traits
+// TODO generic_static_methods_of_generic_traits
+// TODO static_methods_for_generic_structs_of_generic_traits
+// TODO generic_static_methods_of_generic_structs_of_generic_traits
+
+// TODO methods_of_generic_traits
+// TODO generic_methods_of_generic_traits
+// TODO methods_of_generic_structs_of_generic_traits
+// TODO generic_methods_of_generic_structs_of_generic_traits
+
+// for traits
+// for generic traits
 use std::fmt::Display;
 
 #[test]
