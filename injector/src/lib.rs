@@ -8,8 +8,8 @@ use proc_macro::TokenStream;
 use quote::{Tokens, ToTokens};
 use std::mem;
 use std::str::FromStr;
-use syn::{BindingMode, Block, Constness, ExprKind, FnArg, Generics, Ident, ImplItem, Item, ItemKind,
-        Mutability, Pat, Path, Ty};
+use syn::{BindingMode, Block, Constness, ExprKind, FnArg, Generics, Ident, ImplItem, ImplItemKind, Item, ItemKind,
+        MethodSig, Mutability, Pat, Path, Ty};
 
 #[proc_macro_attribute]
 pub fn inject_mocks(_: TokenStream, token_stream: TokenStream) -> TokenStream {
@@ -47,12 +47,46 @@ fn inject_mod(items_opt: Option<&mut Vec<Item>>) {
     }
 }
 
-fn inject_impl(_generics: &Generics, path: Option<&Path>, ty: &Box<Ty>, items: &mut Vec<ImplItem>) {
-    println!("PATH\n{:#?}\nTY\n{:#?}\nITEMS\n{:#?}", path, ty, items);
+fn inject_impl(_generics: &Generics, path: Option<&Path>, _ty: &Box<Ty>, items: &mut Vec<ImplItem>) {
+//    println!("PATH\n{:#?}\nTY\n{:#?}\nITEMS\n{:#?}", path, ty, items);
     if path.is_some() {
         return; // no trait support yet
     }
-//    if let Ty::Path(None, Path { })
+    for item in items {
+        if let ImplItemKind::Method(
+            MethodSig {
+                unsafety: _,
+                constness: ref constness_ref,
+                abi: _,
+                decl: ref mut decl_ref,
+                generics: ref generics_ref },
+            ref mut block) = item.node {
+            match decl_ref.inputs.get(0) { // no non-static methods support yet
+                Some(&FnArg::SelfRef(..)) | Some(&FnArg::SelfValue(..)) => continue,
+                _ => (),
+            };
+            let mut full_fn_name = format!("Self::{}", item.ident.as_ref());
+            append_generics(&mut full_fn_name, generics_ref);
+            inject_fn(&full_fn_name, &mut decl_ref.inputs, constness_ref, block);
+        }
+    }
+
+//    pub struct MethodSig {
+//        pub unsafety: Unsafety,
+//        pub constness: Constness,
+//        pub abi: Option<Abi>,
+//        pub decl: FnDecl,
+//        pub generics: Generics,
+//    }
+
+
+//    pub struct ImplItem {
+//        pub ident: Ident,
+//        pub vis: Visibility,
+//        pub defaultness: Defaultness,
+//        pub attrs: Vec<Attribute>,
+//        pub node: ImplItemKind,
+//    }
 
 
     // impl [<path> for] ty {
@@ -63,15 +97,15 @@ fn inject_impl(_generics: &Generics, path: Option<&Path>, ty: &Box<Ty>, items: &
 }
 
 fn inject_static_fn(ident: &Ident, inputs: &mut Vec<FnArg>, constness: &Constness, generics: &Generics, block: &mut Box<Block>) {
+    let mut full_fn_name = ident.to_string();
+    append_generics(&mut full_fn_name, generics);
+    inject_fn(&full_fn_name, inputs, constness, block);
+}
+
+fn inject_fn(full_fn_name: &str, inputs: &mut Vec<FnArg>, constness: &Constness, block: &mut Block) {
     if *constness == Constness::Const {
         return
     }
-    let mut fn_name = ident.to_string();
-    append_generics(&mut fn_name, generics);
-    inject_fn(&fn_name, inputs, block);
-}
-
-fn inject_fn(fn_name: &str, inputs: &mut Vec<FnArg>, block: &mut Box<Block>) {
     let original_arg_names = args_to_names(inputs);
     unignore_fn_args(inputs);
     let unignored_arg_names = args_to_names(inputs);
@@ -84,7 +118,7 @@ fn inject_fn(fn_name: &str, inputs: &mut Vec<FnArg>, block: &mut Box<Block>) {
                     MockResult::Return(result) => return result,
                 }}
             }};
-        }}"#, original_arg_names, fn_name, unignored_arg_names);
+        }}"#, original_arg_names, full_fn_name, unignored_arg_names);
     let header_expr = syn::parse_expr(&header_str).unwrap();
     let header_stmts = match header_expr.node {
         ExprKind::Block(_, block) => block.stmts,
