@@ -28,8 +28,33 @@
 // TODO methods_of_generic_structs_of_generic_traits
 // TODO generic_methods_of_generic_structs_of_generic_traits
 
-// for traits
-// for generic traits
+// TODO +default
+
+// fns                   ~ 2 generic combinations * 1 self variants = 2
+// methods               ~ 4 generic combinations * 4 self variants = 16
+// trait methods         ~ 8 generic combinations * 4 self variants = 32
+// default trait methods ~ 8 generic combinations * 4 self variants = 32
+// directory + mod file      file                     test          = 82
+
+// each test needs Return and Continue versions
+// &self and &mut self methods check that self is not modified when mocked
+
+// tested fn has <self if method> + 1 + <1 if fn generic> + <1 if trait generic> Display args
+// fns returns formatted str with args
+// Return mocked fns return same str, but prefixed with "mocked"
+// methods return str starting with self field
+// methods are 1 field named tuples
+// &mut self methods modify own field
+
+// fn - function struct Struct trait Trait
+
+// generics:
+// fn, struct, trait
+// each generic should check no leak of type and leak of lifetime
+//
+// self:
+// none, val, ref, mut ref
+
 use std::fmt::Display;
 
 #[test]
