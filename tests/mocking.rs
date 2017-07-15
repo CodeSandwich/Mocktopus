@@ -54,6 +54,14 @@ mod mod_1 {
 #[inject_mocks]
 mod mod_file_1;
 
+#[inject_mocks]
+mod twice_mock_annotated_mod {
+    #[inject_mocks]
+    pub fn twice_mock_annotated_fn(x: u32) -> u32 {
+        x * 2
+    }
+}
+
 mod mocks_do_not_leak_between_tests {
     use super::*;
 
@@ -82,12 +90,12 @@ mod mocking_does_not_works_for_const_fns {
     use super::*;
 
     #[test]
-    fn when_not_mocked_returns_1() {
+    fn when_not_mocked_then_returns_1() {
         assert_eq!(1, const_fn());
     }
 
     #[test]
-    fn when_mocked_returns_1() {
+    fn when_mocked_then_returns_1() {
         const_fn.set_mock(|| MockResult::Return(2));
 
         assert_eq!(1, const_fn());
@@ -98,12 +106,12 @@ mod mocking_captures_ignored_args {
     use super::*;
 
     #[test]
-    fn when_not_mocked_returns_first_arg() {
+    fn when_not_mocked_then_returns_first_arg() {
         assert_eq!(1, two_args_returns_first_ignores_second(1, 2));
     }
 
     #[test]
-    fn when_mocked_returns_second_arg() {
+    fn when_mocked_then_returns_second_arg() {
         two_args_returns_first_ignores_second.set_mock(|x, y| MockResult::Continue((y, x)));
 
         assert_eq!(2, two_args_returns_first_ignores_second(1, 2));
@@ -114,12 +122,12 @@ mod mocking_does_not_work_for_macro_generated_fns {
     use super::*;
 
     #[test]
-    fn when_not_mocked_returns_1() {
+    fn when_not_mocked_then_returns_1() {
         assert_eq!(1, macro_generated_fn());
     }
 
     #[test]
-    fn when_mocked_returns_1() {
+    fn when_mocked_then_returns_1() {
         macro_generated_fn.set_mock(|| MockResult::Return(2));
 
         assert_eq!(1, macro_generated_fn());
@@ -130,14 +138,14 @@ mod mock_injecting_works_for_nested_mods {
     use super::*;
 
     #[test]
-    fn when_not_mocked_return_not_mocked_strs() {
+    fn when_not_mocked_then_returns_not_mocked_strs() {
         assert_eq!("mod_1_fn not mocked", mod_1::mod_1_fn());
         assert_eq!("mod_2_fn not mocked", mod_1::mod_2::mod_2_fn());
         assert_eq!("mod_3_fn not mocked", mod_1::mod_3::mod_3_fn());
     }
 
     #[test]
-    fn when_mocked_return_mocked_strs() {
+    fn when_mocked_then_returns_mocked_strs() {
         mod_1::mod_1_fn.set_mock(|| MockResult::Return("mod_1_fn mocked"));
         mod_1::mod_2::mod_2_fn.set_mock(|| MockResult::Return("mod_2_fn mocked"));
         mod_1::mod_3::mod_3_fn.set_mock(|| MockResult::Return("mod_3_fn mocked"));
@@ -152,14 +160,14 @@ mod mock_injecting_works_for_nested_mods_in_separate_files {
     use super::*;
 
     #[test]
-    fn when_not_mocked_return_not_mocked_strs() {
+    fn when_not_mocked_then_returns_not_mocked_strs() {
         assert_eq!("mod_file_1_fn not mocked", mod_file_1::mod_file_1_fn());
         assert_eq!("mod_file_2_fn not mocked", mod_file_1::mod_file_2::mod_file_2_fn());
         assert_eq!("mod_file_3_fn not mocked", mod_file_1::mod_file_3::mod_file_3_fn());
     }
 
     #[test]
-    fn when_mocked_return_mocked_strs() {
+    fn when_mocked_then_returns_mocked_strs() {
         mod_file_1::mod_file_1_fn.set_mock(|| MockResult::Return("mod_file_1_fn mocked"));
         mod_file_1::mod_file_2::mod_file_2_fn.set_mock(|| MockResult::Return("mod_file_2_fn mocked"));
         mod_file_1::mod_file_3::mod_file_3_fn.set_mock(|| MockResult::Return("mod_file_3_fn mocked"));
@@ -167,5 +175,18 @@ mod mock_injecting_works_for_nested_mods_in_separate_files {
         assert_eq!("mod_file_1_fn mocked", mod_file_1::mod_file_1_fn());
         assert_eq!("mod_file_2_fn mocked", mod_file_1::mod_file_2::mod_file_2_fn());
         assert_eq!("mod_file_3_fn mocked", mod_file_1::mod_file_3::mod_file_3_fn());
+    }
+}
+
+mod twice_mock_annotated_fns {
+    use super::*;
+    use twice_mock_annotated_mod::twice_mock_annotated_fn;
+
+    #[test]
+    fn ___failing___when_fn_mock_annotated_twice_then_gets_injected_once() {
+        twice_mock_annotated_fn.set_mock(|x| MockResult::Continue((x + 1,)));
+
+        // Actually it injects twice. TODO fix
+        //assert_eq!(4, twice_mock_annotated_fn(1));
     }
 }
