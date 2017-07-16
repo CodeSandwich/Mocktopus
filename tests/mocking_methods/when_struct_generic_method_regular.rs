@@ -20,7 +20,7 @@ mod and_method_is_static {
 
     #[test]
     fn and_continue_mocked_then_runs_with_modified_args_for_mocked_type_only() {
-        Struct::<u8>::static_method.set_mock(|a| MockResult::Continue((!a,)));
+        Struct::<u8>::static_method.mock_raw(|a| MockResult::Continue((!a,)));
 
         assert_eq!("false", Struct::<u8>::static_method(true));
         assert_eq!("true", Struct::<&str>::static_method(true));
@@ -28,7 +28,7 @@ mod and_method_is_static {
 
     #[test]
     fn and_return_mocked_then_returns_mocking_result_for_mocked_type_only() {
-        Struct::<u8>::static_method.set_mock(|a| MockResult::Return(format!("mocked {}", a), ));
+        Struct::<u8>::static_method.mock_raw(|a| MockResult::Return(format!("mocked {}", a), ));
 
         assert_eq!("mocked true", Struct::<u8>::static_method(true));
         assert_eq!("true", Struct::<&str>::static_method(true));

@@ -6,8 +6,7 @@ use std::collections::HashMap;
 use std::mem::transmute;
 
 pub trait Mockable<T, O> {
-    fn set_mock<M: Fn<T, Output=MockResult<T, O>> + 'static>(&self, mock: M);
-    unsafe fn set_mock_unsafe<M: Fn<T, Output=MockResult<T, O>>>(&self, mock: M);
+    fn mock_raw<M: Fn<T, Output=MockResult<T, O>> + 'static>(&self, mock: M);
     fn call_mock(&self, input: T) -> MockResult<T, O>;
     unsafe fn get_mock_id(&self) -> TypeId;
 }
@@ -22,20 +21,16 @@ thread_local!{
 }
 
 impl<T, O, F: FnOnce<T, Output=O>> Mockable<T, O> for F {
-    fn set_mock<M: Fn<T, Output=MockResult<T, O>> + 'static>(&self, mock: M) {
+    fn mock_raw<M: Fn<T, Output=MockResult<T, O>> + 'static>(&self, mock: M) {
         unsafe {
-            self.set_mock_unsafe(mock);
+            let id = self.get_mock_id();
+            MOCK_STORE.with(|mock_ref_cell| {
+                let fn_box: Box<Fn<T, Output=MockResult<T, O>>> = Box::new(mock);
+                let stored: Box<Fn<(), Output=()>> = transmute(fn_box);
+                let mock_map = &mut*mock_ref_cell.borrow_mut();
+                mock_map.insert(id, stored);
+            })
         }
-    }
-
-    unsafe fn set_mock_unsafe<M: Fn<T, Output=MockResult<T, O>>>(&self, mock: M) {
-        let id = self.get_mock_id();
-        MOCK_STORE.with(|mock_ref_cell| {
-            let fn_box: Box<Fn<T, Output=MockResult<T, O>>> = Box::new(mock);
-            let stored: Box<Fn<(), Output=()>> = transmute(fn_box);
-            let mock_map = &mut*mock_ref_cell.borrow_mut();
-            mock_map.insert(id, stored);
-        })
     }
 
     fn call_mock(&self, input: T) -> MockResult<T, O> {
@@ -59,31 +54,3 @@ impl<T, O, F: FnOnce<T, Output=O>> Mockable<T, O> for F {
         (||()).get_type_id()
     }
 }
-
-//mod tests {
-//    use super::*;
-//    use std::str::FromStr;
-//
-//    pub fn single_generic_fn<T: ToString>(t: T) -> String {
-//        let (t, ) =
-//            match Mockable::call_mock(&single_generic_fn, (t,)) {
-//                MockResult::Continue(input) => input,
-//                MockResult::Return(result) => return result,
-//            };
-//        t.to_string()
-//    }
-//
-//    pub fn single_generic_ret_fn<T: FromStr>(s: &str) -> T {
-//
-//        s.parse().ok().unwrap()
-//    }
-//
-//    #[test]
-//    fn asdf() {
-//        single_generic_fn::<u32>.set_mock(|_| 123);
-//
-//        let t = 1u32;
-//
-//
-//    }
-//}

@@ -21,7 +21,7 @@ mod mocks_do_not_leak_between_tests {
                 fn $fn_name() {
                     assert_eq!("not mocked", no_args_returns_str(), "function was mocked before mocking");
 
-                    no_args_returns_str.set_mock(|| MockResult::Return((stringify!($fn_name))));
+                    no_args_returns_str.mock_raw(|| MockResult::Return((stringify!($fn_name))));
 
                     assert_eq!(stringify!($fn_name), no_args_returns_str(), "mocking failed");
                 }
@@ -51,7 +51,7 @@ mod mocking_does_not_works_for_const_fns {
 
     #[test]
     fn when_mocked_then_returns_1() {
-        const_fn.set_mock(|| MockResult::Return(2));
+        const_fn.mock_raw(|| MockResult::Return(2));
 
         assert_eq!(1, const_fn());
     }
@@ -72,7 +72,7 @@ mod mocking_captures_ignored_args {
 
     #[test]
     fn when_mocked_then_returns_second_arg() {
-        two_args_returns_first_ignores_second.set_mock(|x, y| MockResult::Continue((y, x)));
+        two_args_returns_first_ignores_second.mock_raw(|x, y| MockResult::Continue((y, x)));
 
         assert_eq!(2, two_args_returns_first_ignores_second(1, 2));
     }
@@ -99,7 +99,7 @@ mod mocking_does_not_work_for_macro_generated_fns {
 
     #[test]
     fn when_mocked_then_returns_1() {
-        macro_generated_fn.set_mock(|| MockResult::Return(2));
+        macro_generated_fn.mock_raw(|| MockResult::Return(2));
 
         assert_eq!(1, macro_generated_fn());
     }
@@ -136,9 +136,9 @@ mod mock_injecting_works_for_nested_mods {
 
     #[test]
     fn when_mocked_then_returns_mocked_strs() {
-        mod_1::mod_1_fn.set_mock(|| MockResult::Return("mod_1_fn mocked"));
-        mod_1::mod_2::mod_2_fn.set_mock(|| MockResult::Return("mod_2_fn mocked"));
-        mod_1::mod_3::mod_3_fn.set_mock(|| MockResult::Return("mod_3_fn mocked"));
+        mod_1::mod_1_fn.mock_raw(|| MockResult::Return("mod_1_fn mocked"));
+        mod_1::mod_2::mod_2_fn.mock_raw(|| MockResult::Return("mod_2_fn mocked"));
+        mod_1::mod_3::mod_3_fn.mock_raw(|| MockResult::Return("mod_3_fn mocked"));
 
         assert_eq!("mod_1_fn mocked", mod_1::mod_1_fn());
         assert_eq!("mod_2_fn mocked", mod_1::mod_2::mod_2_fn());
@@ -161,9 +161,9 @@ mod mock_injecting_works_for_nested_mods_in_separate_files {
 
     #[test]
     fn when_mocked_then_returns_mocked_strs() {
-        mod_file_1::mod_file_1_fn.set_mock(|| MockResult::Return("mod_file_1_fn mocked"));
-        mod_file_1::mod_file_2::mod_file_2_fn.set_mock(|| MockResult::Return("mod_file_2_fn mocked"));
-        mod_file_1::mod_file_3::mod_file_3_fn.set_mock(|| MockResult::Return("mod_file_3_fn mocked"));
+        mod_file_1::mod_file_1_fn.mock_raw(|| MockResult::Return("mod_file_1_fn mocked"));
+        mod_file_1::mod_file_2::mod_file_2_fn.mock_raw(|| MockResult::Return("mod_file_2_fn mocked"));
+        mod_file_1::mod_file_3::mod_file_3_fn.mock_raw(|| MockResult::Return("mod_file_3_fn mocked"));
 
         assert_eq!("mod_file_1_fn mocked", mod_file_1::mod_file_1_fn());
         assert_eq!("mod_file_2_fn mocked", mod_file_1::mod_file_2::mod_file_2_fn());
@@ -185,7 +185,7 @@ mod annotating_function_twice_makes_it_injected_once {
     #[test]
     // Actually it gets injects twice TODO fix
     fn ___fix_me___function_gets_injected_once() {
-        mock_annotated_mod::mock_annotated_fn.set_mock(|x| MockResult::Continue((x + 1,)));
+        mock_annotated_mod::mock_annotated_fn.mock_raw(|x| MockResult::Continue((x + 1,)));
 
         //assert_eq!(4, twice_mock_annotated_fn(1));
         assert_eq!(6, mock_annotated_mod::mock_annotated_fn(1));
@@ -205,7 +205,7 @@ mod mocking_generic_over_a_type_with_lifetime_mocks_all_lifetime_variants {
 
     #[test]
     fn all_lifetime_variants_get_mocked() {
-        function::<&char>.set_mock(|c| MockResult::Return(format!("mocked {}", c)));
+        function::<&char>.mock_raw(|c| MockResult::Return(format!("mocked {}", c)));
         let local_char = 'L';
 
         assert_eq!("mocked L", function(&local_char));
@@ -213,4 +213,3 @@ mod mocking_generic_over_a_type_with_lifetime_mocks_all_lifetime_variants {
         assert_eq!("not mocked 3", function(&3));
     }
 }
-
