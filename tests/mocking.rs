@@ -6,64 +6,13 @@ extern crate mocktopus;
 use mocktopus_injector::inject_mocks;
 use mocktopus::*;
 
-#[inject_mocks]
-pub fn no_args_returns_str() -> &'static str {
-    "not mocked"
-}
-
-#[inject_mocks]
-pub const fn const_fn() -> u32 {
-    1
-}
-
-#[inject_mocks]
-pub fn two_args_returns_first_ignores_second(x: u32, _: u32) -> u32 {
-    x
-}
-
-macro_rules! fn_generating_macro {
-    () => {
-        pub fn macro_generated_fn() -> u32 {
-            1
-        }
-    }
-}
-
-#[inject_mocks]
-fn_generating_macro!();
-
-#[inject_mocks]
-mod mod_1 {
-    pub fn mod_1_fn() -> &'static str {
-        "mod_1_fn not mocked"
-    }
-
-    pub mod mod_2 {
-        pub fn mod_2_fn() -> &'static str {
-            "mod_2_fn not mocked"
-        }
-    }
-
-    pub mod mod_3 {
-        pub fn mod_3_fn() -> &'static str {
-            "mod_3_fn not mocked"
-        }
-    }
-}
-
-#[inject_mocks]
-mod mod_file_1;
-
-#[inject_mocks]
-mod twice_mock_annotated_mod {
-    #[inject_mocks]
-    pub fn twice_mock_annotated_fn(x: u32) -> u32 {
-        x * 2
-    }
-}
-
 mod mocks_do_not_leak_between_tests {
     use super::*;
+
+    #[inject_mocks]
+    pub fn no_args_returns_str() -> &'static str {
+        "not mocked"
+    }
 
     macro_rules! generate_tests {
         ($($fn_name:ident),+) => {
@@ -89,6 +38,11 @@ mod mocks_do_not_leak_between_tests {
 mod mocking_does_not_works_for_const_fns {
     use super::*;
 
+    #[inject_mocks]
+    pub const fn const_fn() -> u32 {
+        1
+    }
+
     #[test]
     fn when_not_mocked_then_returns_1() {
         assert_eq!(1, const_fn());
@@ -104,6 +58,11 @@ mod mocking_does_not_works_for_const_fns {
 
 mod mocking_captures_ignored_args {
     use super::*;
+
+    #[inject_mocks]
+    pub fn two_args_returns_first_ignores_second(x: u32, _: u32) -> u32 {
+        x
+    }
 
     #[test]
     fn when_not_mocked_then_returns_first_arg() {
@@ -121,6 +80,17 @@ mod mocking_captures_ignored_args {
 mod mocking_does_not_work_for_macro_generated_fns {
     use super::*;
 
+    macro_rules! fn_generating_macro {
+        () => {
+            pub fn macro_generated_fn() -> u32 {
+                1
+            }
+        }
+    }
+
+    #[inject_mocks]
+    fn_generating_macro!();
+
     #[test]
     fn when_not_mocked_then_returns_1() {
         assert_eq!(1, macro_generated_fn());
@@ -136,6 +106,25 @@ mod mocking_does_not_work_for_macro_generated_fns {
 
 mod mock_injecting_works_for_nested_mods {
     use super::*;
+
+    #[inject_mocks]
+    mod mod_1 {
+        pub fn mod_1_fn() -> &'static str {
+            "mod_1_fn not mocked"
+        }
+
+        pub mod mod_2 {
+            pub fn mod_2_fn() -> &'static str {
+                "mod_2_fn not mocked"
+            }
+        }
+
+        pub mod mod_3 {
+            pub fn mod_3_fn() -> &'static str {
+                "mod_3_fn not mocked"
+            }
+        }
+    }
 
     #[test]
     fn when_not_mocked_then_returns_not_mocked_strs() {
@@ -155,6 +144,9 @@ mod mock_injecting_works_for_nested_mods {
         assert_eq!("mod_3_fn mocked", mod_1::mod_3::mod_3_fn());
     }
 }
+
+#[inject_mocks]
+mod mod_file_1;
 
 mod mock_injecting_works_for_nested_mods_in_separate_files {
     use super::*;
@@ -178,15 +170,46 @@ mod mock_injecting_works_for_nested_mods_in_separate_files {
     }
 }
 
-mod twice_mock_annotated_fns {
+mod annotating_function_twice_makes_it_injected_once {
     use super::*;
-    use twice_mock_annotated_mod::twice_mock_annotated_fn;
+
+    #[inject_mocks]
+    mod mock_annotated_mod {
+        #[inject_mocks]
+        pub fn mock_annotated_fn(x: u32) -> u32 {
+            x * 2
+        }
+    }
 
     #[test]
-    fn ___failing___when_fn_mock_annotated_twice_then_gets_injected_once() {
-        twice_mock_annotated_fn.set_mock(|x| MockResult::Continue((x + 1,)));
+    // Actually it gets injects twice TODO fix
+    fn ___fix_me___function_gets_injected_once() {
+        mock_annotated_mod::mock_annotated_fn.set_mock(|x| MockResult::Continue((x + 1,)));
 
-        // Actually it injects twice. TODO fix
         //assert_eq!(4, twice_mock_annotated_fn(1));
+        assert_eq!(6, mock_annotated_mod::mock_annotated_fn(1));
     }
 }
+
+mod mocking_generic_over_a_type_with_lifetime_mocks_all_lifetime_variants {
+    use super::*;
+    use std::fmt::Display;
+
+    #[inject_mocks]
+    fn function<T: Display>(generic: T) -> String {
+        format!("not mocked {}", generic)
+    }
+
+    static STATIC_CHAR: char = 'S';
+
+    #[test]
+    fn all_lifetime_variants_get_mocked() {
+        function::<&char>.set_mock(|c| MockResult::Return(format!("mocked {}", c)));
+        let local_char = 'L';
+
+        assert_eq!("mocked L", function(&local_char));
+        assert_eq!("mocked S", function(&STATIC_CHAR));
+        assert_eq!("not mocked 1", function(&1));
+    }
+}
+
