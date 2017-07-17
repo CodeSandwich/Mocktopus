@@ -9,7 +9,7 @@ use quote::{Tokens, ToTokens};
 use std::mem;
 use std::str::FromStr;
 use syn::{BindingMode, Block, Constness, ExprKind, FnArg, Generics, Ident, ImplItem, ImplItemKind, Item, ItemKind,
-        MethodSig, Mutability, Pat, Path, Ty};
+        MethodSig, Mutability, Pat, Path, Stmt, Ty};
 
 #[proc_macro_attribute]
 pub fn inject_mocks(_: TokenStream, token_stream: TokenStream) -> TokenStream {
@@ -106,29 +106,10 @@ fn inject_fn(full_fn_name: &str, inputs: &mut Vec<FnArg>, constness: &Constness,
     if *constness == Constness::Const {
         return
     }
-    let original_arg_names = args_to_names(inputs);
     unignore_fn_args(inputs);
-    let unignored_arg_names = args_to_names(inputs);
-    let header_str = format!(
-        r#"{{
-            let ({}) = {{
-                use mocktopus::*;
-                match Mockable::call_mock(&{}, (({}))) {{
-                    MockResult::Continue(input) => input,
-                    MockResult::Return(result) => return result,
-                }}
-            }};
-        }}"#, original_arg_names, full_fn_name, unignored_arg_names);
-    let header_expr = syn::parse_expr(&header_str).unwrap();
-    let header_stmts = match header_expr.node {
-        ExprKind::Block(_, block) => block.stmts,
-        _ => unreachable!(),
-    };
-    //    let mut tokens = Tokens::new();
-    //    for stmt in &header_stmts {
-    //        stmt.to_tokens(&mut tokens);
-    //    }
-    //    println!("{}", tokens.as_str());
+    let mut header_builder = HeaderBuilder::default();
+    header_builder.set_input_args(inputs);
+    let header_stmts = header_builder.build(full_fn_name.to_string());
     let mut body_stmts = mem::replace(&mut block.stmts, header_stmts);
     block.stmts.append(&mut body_stmts);
 }
@@ -150,20 +131,6 @@ fn unignore_fn_args(inputs: &mut Vec<FnArg>) {
     }
 }
 
-fn args_to_names(inputs: &Vec<FnArg>) -> String {
-    inputs.iter()
-        .fold(String::new(), |mut result, input| {
-            match *input {
-                FnArg::SelfRef(_, _) | FnArg::SelfValue(_) => result.push_str("self"),
-                FnArg::Captured(Pat::Wild, _) => result.push_str("_"),
-                FnArg::Captured(Pat::Ident(_, ref ident, None), _) => result.push_str(ident.as_ref()),
-                _ => panic!("Invalid function input '{:?}'", input),
-            };
-            result.push_str(", ");
-            result
-        })
-}
-
 fn append_generics(fn_name: &mut String, generics: &Generics) {
     if generics.ty_params.is_empty() {
         return
@@ -174,4 +141,47 @@ fn append_generics(fn_name: &mut String, generics: &Generics) {
         fn_name.push(',');
     }
     fn_name.push('>');
+}
+
+#[derive(Default)]
+struct HeaderBuilder<'a> {
+    input_args: Option<&'a Vec<FnArg>>,
+}
+
+impl<'a> HeaderBuilder<'a> {
+    pub fn build(self, full_fn_name: String) -> Vec<Stmt> {
+        let input_args_str = self.create_input_args_str();
+        let header_str = format!(
+            r#"{{
+            let ({}) = {{
+                use mocktopus::*;
+                match Mockable::call_mock(&{}, (({}))) {{
+                    MockResult::Continue(input) => input,
+                    MockResult::Return(result) => return result,
+                }}
+            }};
+        }}"#, input_args_str, full_fn_name, input_args_str);
+        let header_expr = syn::parse_expr(&header_str).expect("Mocktopus internal error: generated header unparsable");
+        match header_expr.node {
+            ExprKind::Block(_, block) => block.stmts,
+            _ => panic!("Mocktopus internal error: generated header not a block"),
+        }
+    }
+
+    pub fn set_input_args(&mut self, inputs: &'a Vec<FnArg>) {
+        self.input_args = Some(inputs);
+    }
+
+    fn create_input_args_str(&self) -> String {
+        let mut result = String::new();
+        for input_arg in self.input_args.expect("Mocktopus internal error: inputs not set") {
+            match *input_arg {
+                FnArg::SelfRef(_, _) | FnArg::SelfValue(_) => result.push_str("self"),
+                FnArg::Captured(Pat::Ident(_, ref ident, None), _) => result.push_str(ident.as_ref()),
+                _ => panic!("Mocktopus internal error: invalid function input '{:?}'", input_arg),
+            };
+            result.push_str(", ");
+        };
+        result
+    }
 }
