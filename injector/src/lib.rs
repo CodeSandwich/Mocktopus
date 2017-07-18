@@ -11,6 +11,10 @@ use std::str::FromStr;
 use syn::{BindingMode, Block, Constness, ExprKind, FnArg, Generics, Ident, ImplItem, ImplItemKind, Item, ItemKind,
         MethodSig, Mutability, Pat, Path, Stmt, Ty};
 
+macro_rules! error_msg {
+    ($msg:expr) => { concat!("Mocktopus internal error: ", $msg) }
+}
+
 #[proc_macro_attribute]
 pub fn inject_mocks(_: TokenStream, token_stream: TokenStream) -> TokenStream {
     let in_string = token_stream.to_string();
@@ -65,11 +69,14 @@ fn inject_impl(_generics: &Generics, path: Option<&Path>, _ty: &Box<Ty>, items: 
                 Some(&FnArg::SelfRef(..)) | Some(&FnArg::SelfValue(..)) => continue,
                 _ => (),
             };
-            let mut full_fn_name = format!("Self::{}", item.ident.as_ref());
-            append_generics(&mut full_fn_name, generics_ref);
-            inject_fn(&full_fn_name, &mut decl_ref.inputs, constness_ref, block);
+            let builder = HeaderStmtBuilder::default()
+                .set_is_method(true)
+                .set_fn_name(&item.ident)
+                .set_fn_generics(generics_ref);
+            inject_fn(builder, &mut decl_ref.inputs, constness_ref, block);
         }
     }
+}
 
 //    pub struct MethodSig {
 //        pub unsafety: Unsafety,
@@ -93,23 +100,19 @@ fn inject_impl(_generics: &Generics, path: Option<&Path>, _ty: &Box<Ty>, items: 
     //      <items>
     // }
 
-
-}
-
 fn inject_static_fn(ident: &Ident, inputs: &mut Vec<FnArg>, constness: &Constness, generics: &Generics, block: &mut Box<Block>) {
-    let mut full_fn_name = ident.to_string();
-    append_generics(&mut full_fn_name, generics);
-    inject_fn(&full_fn_name, inputs, constness, block);
+    let builder = HeaderStmtBuilder::default()
+        .set_fn_name(ident)
+        .set_fn_generics(generics);
+    inject_fn(builder, inputs, constness, block);
 }
 
-fn inject_fn(full_fn_name: &str, inputs: &mut Vec<FnArg>, constness: &Constness, block: &mut Block) {
+fn inject_fn(builder: HeaderStmtBuilder, inputs: &mut Vec<FnArg>, constness: &Constness, block: &mut Block) {
     if *constness == Constness::Const {
         return
     }
     unignore_fn_args(inputs);
-    let mut header_builder = HeaderBuilder::default();
-    header_builder.set_input_args(inputs);
-    let header_stmts = header_builder.build(full_fn_name.to_string());
+    let header_stmts = builder.set_input_args(inputs).build();
     let mut body_stmts = mem::replace(&mut block.stmts, header_stmts);
     block.stmts.append(&mut body_stmts);
 }
@@ -131,57 +134,88 @@ fn unignore_fn_args(inputs: &mut Vec<FnArg>) {
     }
 }
 
-fn append_generics(fn_name: &mut String, generics: &Generics) {
-    if generics.ty_params.is_empty() {
-        return
-    }
-    fn_name.push_str("::<");
-    for ty_param in &generics.ty_params {
-        fn_name.push_str(&ty_param.ident.as_ref());
-        fn_name.push(',');
-    }
-    fn_name.push('>');
-}
-
 #[derive(Default)]
-struct HeaderBuilder<'a> {
+struct HeaderStmtBuilder<'a> {
+    is_method: bool,
+    fn_ident: Option<&'a Ident>,
+    fn_generics: Option<&'a Generics>,
     input_args: Option<&'a Vec<FnArg>>,
+
 }
 
-impl<'a> HeaderBuilder<'a> {
-    pub fn build(self, full_fn_name: String) -> Vec<Stmt> {
-        let input_args_str = self.create_input_args_str();
-        let header_str = format!(
+impl<'a> HeaderStmtBuilder<'a> {
+    pub fn set_is_method(mut self, is_method: bool) -> Self {
+        self.is_method = is_method;
+        self
+    }
+
+    pub fn set_fn_name(mut self, fn_ident: &'a Ident) -> Self {
+        self.fn_ident = Some(fn_ident);
+        self
+    }
+
+    pub fn set_fn_generics(mut self, fn_generics: &'a Generics) -> Self {
+        self.fn_generics = Some(fn_generics);
+        self
+    }
+    pub fn set_input_args(mut self, inputs: &'a Vec<FnArg>) -> Self {
+        self.input_args = Some(inputs);
+        self
+    }
+
+    pub fn build(&self) -> Vec<Stmt> {
+        let header_str = self.create_header_block_str();
+        let header_expr = syn::parse_expr(&header_str).expect(error_msg!("generated header unparsable"));
+        match header_expr.node {
+            ExprKind::Block(_, block) => block.stmts,
+            _ => panic!(error_msg!("generated header not a block")),
+        }
+    }
+
+    fn create_header_block_str(&self) -> String {
+        format!(
             r#"{{
-            let ({}) = {{
+            let ({0}) = {{
                 use mocktopus::*;
-                match Mockable::call_mock(&{}, (({}))) {{
+                match Mockable::call_mock(&{1}, (({0}))) {{
                     MockResult::Continue(input) => input,
                     MockResult::Return(result) => return result,
                 }}
             }};
-        }}"#, input_args_str, full_fn_name, input_args_str);
-        let header_expr = syn::parse_expr(&header_str).expect("Mocktopus internal error: generated header unparsable");
-        match header_expr.node {
-            ExprKind::Block(_, block) => block.stmts,
-            _ => panic!("Mocktopus internal error: generated header not a block"),
-        }
-    }
-
-    pub fn set_input_args(&mut self, inputs: &'a Vec<FnArg>) {
-        self.input_args = Some(inputs);
+        }}"#, self.create_input_args_str(), self.create_full_fn_name_str())
     }
 
     fn create_input_args_str(&self) -> String {
-        let mut result = String::new();
-        for input_arg in self.input_args.expect("Mocktopus internal error: inputs not set") {
+        let mut input_args_str = String::new();
+        for input_arg in self.input_args.expect(error_msg!("inputs not set")) {
             match *input_arg {
-                FnArg::SelfRef(_, _) | FnArg::SelfValue(_) => result.push_str("self"),
-                FnArg::Captured(Pat::Ident(_, ref ident, None), _) => result.push_str(ident.as_ref()),
-                _ => panic!("Mocktopus internal error: invalid function input '{:?}'", input_arg),
+                FnArg::SelfRef(_, _) | FnArg::SelfValue(_) => input_args_str.push_str("self"),
+                FnArg::Captured(Pat::Ident(_, ref ident, None), _) => input_args_str.push_str(ident.as_ref()),
+                _ => panic!(error_msg!("invalid function input '{:?}'"), input_arg),
             };
-            result.push_str(", ");
+            input_args_str.push_str(", ");
         };
-        result
+        input_args_str
+    }
+
+    fn create_full_fn_name_str(&self) -> String {
+        format!("{}{}{}",
+                if self.is_method { "Self::" } else { "" },
+                self.fn_ident.expect(error_msg!("fn name not set")).as_ref(),
+                Self::create_generics_str(self.fn_generics))
+    }
+
+    fn create_generics_str(generics_opt: Option<&Generics>) -> String {
+        let generics = match generics_opt {
+            Some(generics) if !generics.ty_params.is_empty() => generics,
+            _ => return String::new(),
+        };
+        let mut generics_str = "::<".to_string();
+        for ty_param in &generics.ty_params {
+            generics_str.push_str(&ty_param.ident.as_ref());
+            generics_str.push(',');
+        }
+        generics_str.push('>');
+        generics_str
     }
 }
