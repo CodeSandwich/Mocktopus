@@ -9,8 +9,8 @@ pub struct HeaderBuilder<'a> {
     is_method: bool,
     fn_ident: Option<&'a Ident>,
     fn_generics: Option<&'a Generics>,
-    input_args: Option<&'a Vec<FnArg>>,
-
+    self_arg: Option<&'a FnArg>,
+    non_self_args: Option<&'a [FnArg]>,
 }
 
 impl<'a> HeaderBuilder<'a> {
@@ -29,7 +29,17 @@ impl<'a> HeaderBuilder<'a> {
         self
     }
     pub fn set_input_args(mut self, inputs: &'a Vec<FnArg>) -> Self {
-        self.input_args = Some(inputs);
+        match inputs.first() {
+            self_arg @ Some(&FnArg::SelfRef(_, _)) | self_arg @ Some(&FnArg::SelfValue(_)) => {
+                self.self_arg = self_arg;
+                self.non_self_args = Some(&inputs[1..]);
+            },
+            _ => {
+                self.self_arg = None;
+                self.non_self_args = Some(inputs.as_slice());
+            },
+        };
+        self.non_self_args = Some(inputs);
         self
     }
 
@@ -45,27 +55,36 @@ impl<'a> HeaderBuilder<'a> {
     fn create_header_block_str(&self) -> String {
         format!(
             r#"{{
-            let ({0}) = {{
+            let ({non_self_args}) = {{
                 use mocktopus::*;
-                match Mockable::call_mock(&{1}, (({0}))) {{
+                match Mockable::call_mock(&{full_fn_name}, (({self_arg}{non_self_args}))) {{
                     MockResult::Continue(input) => input,
                     MockResult::Return(result) => return result,
                 }}
             }};
-        }}"#, self.create_input_args_str(), self.create_full_fn_name_str())
+        }}"#,
+            self_arg = self.create_self_arg_str(),
+            non_self_args = self.create_non_self_args_str(),
+            full_fn_name = self.create_full_fn_name_str())
     }
 
-    fn create_input_args_str(&self) -> String {
+    fn create_non_self_args_str(&self) -> String {
         let mut input_args_str = String::new();
-        for input_arg in self.input_args.expect(error_msg!("inputs not set")) {
-            match *input_arg {
-                FnArg::SelfRef(_, _) | FnArg::SelfValue(_) => input_args_str.push_str("self"),
+        for arg in self.non_self_args.expect(error_msg!("inputs not set")) {
+            match *arg {
                 FnArg::Captured(Pat::Ident(_, ref ident, None), _) => input_args_str.push_str(ident.as_ref()),
-                _ => panic!(error_msg!("invalid function input '{:?}'"), input_arg),
+                _ => panic!(error_msg!("invalid function input '{:?}'"), arg),
             };
             input_args_str.push_str(", ");
         };
         input_args_str
+    }
+
+    fn create_self_arg_str(&self) -> &str {
+        match self.self_arg {
+            Some(_) => "self, ",
+            None => "",
+        }
     }
 
     fn create_full_fn_name_str(&self) -> String {
@@ -74,6 +93,19 @@ impl<'a> HeaderBuilder<'a> {
                 self.fn_ident.expect(error_msg!("fn name not set")).as_ref(),
                 create_generics_str(self.fn_generics))
     }
+}
+
+fn create_args_str<'a, T: Iterator<Item = &'a FnArg>>(args_iter: T) -> String {
+    let mut input_args_str = String::new();
+    for arg in args_iter {
+        match *arg {
+            FnArg::SelfRef(_, _) | FnArg::SelfValue(_) => input_args_str.push_str("self"),
+            FnArg::Captured(Pat::Ident(_, ref ident, None), _) => input_args_str.push_str(ident.as_ref()),
+            _ => panic!(error_msg!("invalid function input '{:?}'"), arg),
+        };
+        input_args_str.push_str(", ");
+    };
+    input_args_str
 }
 
 fn create_generics_str(generics_opt: Option<&Generics>) -> String {
