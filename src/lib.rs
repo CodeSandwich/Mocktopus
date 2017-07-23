@@ -1,4 +1,8 @@
-#![feature(fn_traits, get_type_id, unboxed_closures)]
+#![feature(fn_traits, get_type_id, proc_macro, unboxed_closures)]
+
+extern crate mocktopus_injector;
+
+pub use mocktopus_injector::*;
 
 use std::any::{Any, TypeId};
 use std::cell::RefCell;

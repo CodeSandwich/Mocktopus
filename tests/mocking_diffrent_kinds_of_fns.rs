@@ -1,10 +1,8 @@
 #![feature(const_fn, proc_macro)]
 
-extern crate mocktopus_injector;
 extern crate mocktopus;
 
 use mocktopus::*;
-use mocktopus_injector::*;
 use std::fmt::Display;
 
 mod mocking_fns;

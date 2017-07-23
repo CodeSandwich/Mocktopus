@@ -1,9 +1,9 @@
 #![feature(const_fn, proc_macro)]
 
-extern crate mocktopus_injector;
+//extern crate mocktopus_injector;
 extern crate mocktopus;
 
-use mocktopus_injector::inject_mocks;
+//use mocktopus_injector::inject_mocks;
 use mocktopus::*;
 
 mod mocks_do_not_leak_between_tests {
