@@ -34,7 +34,7 @@ fn inject_item(item: &mut Item) {
         ItemKind::Mod(ref mut items_opt) =>
             inject_mod(items_opt.as_mut()),
         ItemKind::Fn(ref mut decl, _, ref constness, _, _, ref mut block) =>
-            inject_static_fn(&item.ident, &mut decl.inputs, constness, block),
+            inject_fn(HeaderBuilder::default(), &item.ident, &mut decl.inputs, constness, block),
         ItemKind::Impl(_, _, ref generics, ref path, ref ty, ref mut items) =>
             inject_impl(generics, path.as_ref(), ty, items),
         //        ItemKind::Trait(ref mut unsafety, ref mut generics, ref mut ty_param_bound, ref mut items) => unimplemented!(),
@@ -65,9 +65,8 @@ fn inject_impl(_generics: &Generics, path: Option<&Path>, _ty: &Box<Ty>, items: 
                     generics: _},
                 ref mut block) = item.node {
             let builder = HeaderBuilder::default()
-                .set_is_method(true)
-                .set_fn_name(&item.ident);
-            inject_fn(builder, &mut decl_ref.inputs, constness_ref, block);
+                .set_is_method(true);
+            inject_fn(builder, &item.ident, &mut decl_ref.inputs, constness_ref, block);
         }
     }
 }
@@ -94,18 +93,15 @@ fn inject_impl(_generics: &Generics, path: Option<&Path>, _ty: &Box<Ty>, items: 
     //      <items>
     // }
 
-fn inject_static_fn(ident: &Ident, inputs: &mut Vec<FnArg>, constness: &Constness, block: &mut Box<Block>) {
-    let builder = HeaderBuilder::default()
-        .set_fn_name(ident);
-    inject_fn(builder, inputs, constness, block);
-}
-
-fn inject_fn(builder: HeaderBuilder, inputs: &mut Vec<FnArg>, constness: &Constness, block: &mut Block) {
+fn inject_fn(builder: HeaderBuilder, fn_name: &Ident, inputs: &mut Vec<FnArg>, constness: &Constness, block: &mut Block) {
     if *constness == Constness::Const {
         return
     }
     unignore_fn_args(inputs);
-    let header_stmts = builder.set_input_args(inputs).build();
+    let header_stmts = builder
+        .set_fn_name(fn_name)
+        .set_input_args(inputs)
+        .build();
     let mut body_stmts = mem::replace(&mut block.stmts, header_stmts);
     block.stmts.append(&mut body_stmts);
 }
