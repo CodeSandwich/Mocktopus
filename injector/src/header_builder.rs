@@ -1,4 +1,4 @@
-use syn::{ExprKind, FnArg, Generics, Ident, Mutability, Pat, self, Stmt};
+use syn::{ExprKind, FnArg, Ident, Mutability, Pat, self, Stmt};
 
 const ARG_REPLACEMENT_TUPLE_NAME: &str = "replacement";
 
@@ -10,7 +10,6 @@ macro_rules! error_msg {
 pub struct HeaderBuilder<'a> {
     is_method: bool,
     fn_ident: Option<&'a Ident>,
-    fn_generics: Option<&'a Generics>,
     self_arg: Option<&'a FnArg>,
     non_self_args: Option<&'a [FnArg]>,
 }
@@ -26,10 +25,6 @@ impl<'a> HeaderBuilder<'a> {
         self
     }
 
-    pub fn set_fn_generics(mut self, fn_generics: &'a Generics) -> Self {
-        self.fn_generics = Some(fn_generics);
-        self
-    }
     pub fn set_input_args(mut self, inputs: &'a Vec<FnArg>) -> Self {
         match inputs.first() {
             self_arg @ Some(&FnArg::SelfRef(_, _)) | self_arg @ Some(&FnArg::SelfValue(_)) => {
@@ -85,10 +80,9 @@ impl<'a> HeaderBuilder<'a> {
     }
 
     fn create_full_fn_name_str(&self) -> String {
-        format!("{}{}{}",
+        format!("{}{}",
                 if self.is_method { "Self::" } else { "" },
-                self.fn_ident.expect(error_msg!("fn name not set")).as_ref(),
-                create_generics_str(self.fn_generics))
+                self.fn_ident.expect(error_msg!("fn name not set")).as_ref())
     }
 
     fn create_self_arg_str(&self) -> String {
@@ -145,29 +139,16 @@ impl<'a> HeaderBuilder<'a> {
     }
 }
 
-fn create_args_str<'a, T: Iterator<Item = &'a FnArg>>(args_iter: T) -> String {
-    let mut input_args_str = String::new();
-    for arg in args_iter {
-        match *arg {
-            FnArg::SelfRef(_, _) | FnArg::SelfValue(_) => input_args_str.push_str("self"),
-            FnArg::Captured(Pat::Ident(_, ref ident, None), _) => input_args_str.push_str(ident.as_ref()),
-            _ => panic!(error_msg!("invalid function input '{:?}'"), arg),
-        };
-        input_args_str.push_str(", ");
-    };
-    input_args_str
-}
-
-fn create_generics_str(generics_opt: Option<&Generics>) -> String {
-    let generics = match generics_opt {
-        Some(generics) if !generics.ty_params.is_empty() => generics,
-        _ => return String::new(),
-    };
-    let mut generics_str = "::<".to_string();
-    for ty_param in &generics.ty_params {
-        generics_str.push_str(&ty_param.ident.as_ref());
-        generics_str.push(',');
-    }
-    generics_str.push('>');
-    generics_str
-}
+//fn create_generics_str(generics_opt: Option<&Generics>) -> String {
+//    let generics = match generics_opt {
+//        Some(generics) if !generics.ty_params.is_empty() => generics,
+//        _ => return String::new(),
+//    };
+//    let mut generics_str = "::<".to_string();
+//    for ty_param in &generics.ty_params {
+//        generics_str.push_str(&ty_param.ident.as_ref());
+//        generics_str.push(',');
+//    }
+//    generics_str.push('>');
+//    generics_str
+//}

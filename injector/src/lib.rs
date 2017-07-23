@@ -33,8 +33,8 @@ fn inject_item(item: &mut Item) {
     match item.node {
         ItemKind::Mod(ref mut items_opt) =>
             inject_mod(items_opt.as_mut()),
-        ItemKind::Fn(ref mut decl, _, ref constness, _, ref generics, ref mut block) =>
-            inject_static_fn(&item.ident, &mut decl.inputs, constness, generics, block),
+        ItemKind::Fn(ref mut decl, _, ref constness, _, _, ref mut block) =>
+            inject_static_fn(&item.ident, &mut decl.inputs, constness, block),
         ItemKind::Impl(_, _, ref generics, ref path, ref ty, ref mut items) =>
             inject_impl(generics, path.as_ref(), ty, items),
         //        ItemKind::Trait(ref mut unsafety, ref mut generics, ref mut ty_param_bound, ref mut items) => unimplemented!(),
@@ -57,21 +57,16 @@ fn inject_impl(_generics: &Generics, path: Option<&Path>, _ty: &Box<Ty>, items: 
     }
     for item in items {
         if let ImplItemKind::Method(
-            MethodSig {
-                unsafety: _,
-                constness: ref constness_ref,
-                abi: _,
-                decl: ref mut decl_ref,
-                generics: ref generics_ref },
-            ref mut block) = item.node {
-            match decl_ref.inputs.get(0) { // no non-static methods support yet
-                Some(&FnArg::SelfRef(..)) | Some(&FnArg::SelfValue(..)) => continue,
-                _ => (),
-            };
+                MethodSig {
+                    unsafety: _,
+                    constness: ref constness_ref,
+                    abi: _,
+                    decl: ref mut decl_ref,
+                    generics: _},
+                ref mut block) = item.node {
             let builder = HeaderBuilder::default()
                 .set_is_method(true)
-                .set_fn_name(&item.ident)
-                .set_fn_generics(generics_ref);
+                .set_fn_name(&item.ident);
             inject_fn(builder, &mut decl_ref.inputs, constness_ref, block);
         }
     }
@@ -99,10 +94,9 @@ fn inject_impl(_generics: &Generics, path: Option<&Path>, _ty: &Box<Ty>, items: 
     //      <items>
     // }
 
-fn inject_static_fn(ident: &Ident, inputs: &mut Vec<FnArg>, constness: &Constness, generics: &Generics, block: &mut Box<Block>) {
+fn inject_static_fn(ident: &Ident, inputs: &mut Vec<FnArg>, constness: &Constness, block: &mut Box<Block>) {
     let builder = HeaderBuilder::default()
-        .set_fn_name(ident)
-        .set_fn_generics(generics);
+        .set_fn_name(ident);
     inject_fn(builder, inputs, constness, block);
 }
 
