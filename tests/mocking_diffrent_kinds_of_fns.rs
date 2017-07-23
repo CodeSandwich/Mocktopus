@@ -11,15 +11,14 @@ mod mocking_methods;
 // generic variants: fn, struct, trait
 // self variants: none, val, ref, mut ref
 // fns                   ~ 2 generic combinations * 1 self variants = 2  DONE  1*2=02/02
-// methods               ~ 4 generic combinations * 4 self variants = 16 TODO  2*1=01/16
+// methods               ~ 4 generic combinations * 4 self variants = 16 TODO  4*1=04/16
 // trait methods         ~ 8 generic combinations * 4 self variants = 32 TODO  0*0=00/32
 // default trait methods ~ 8 generic combinations * 4 self variants = 32 TODO  0*0=00/32
-// directory + mod file      file                     test          = 82           02/82
+// directory + mod file      file                     test          = 82           06/82
 
 // naming: function, val_method, ref_method, ref_mut_method, Struct, Trait
 // tested fn has <self if method> + bool + <1 if fn generic> + <1 if trait generic> Display args
-// all types must be configured so that final string consists of u8, bool, f32 and char
-// fns returns formatted String with all args
+// fns return formatted String with all args
 // methods return String starting with self field
 // &mut self methods double own field before printing
 // structs are 1 field named tuples u8 or generic mocked for u8
@@ -29,6 +28,5 @@ mod mocking_methods;
 // each test needs unmocked, Return and Continue versions
 // Return mocked fns return same String, but prefixed with "mocked"
 // Continue mocked fns increment or negate the args
-// generics need test with each generic not leaking and all lifetimes leaked
-// this test must be for static and local ref, both Return mocked
+// generics need test with each generic not leaking
 // &self and &mut self methods check that self is not modified when mocked

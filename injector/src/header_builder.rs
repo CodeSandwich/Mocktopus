@@ -36,7 +36,6 @@ impl<'a> HeaderBuilder<'a> {
                 self.non_self_args = Some(inputs.as_slice());
             },
         };
-        self.non_self_args = Some(inputs);
         self
     }
 
@@ -53,13 +52,12 @@ impl<'a> HeaderBuilder<'a> {
         format!(
             r#"{{
             let ({non_self_args}) = {block_unsafety} {{
-                use mocktopus::*;
-                match Mockable::call_mock(&{full_fn_name}, (({self_arg}{non_self_args}))) {{
-                    MockResult::Continue({arg_replacement_tuple}) => {{
+                match mocktopus::Mockable::call_mock(&{full_fn_name}, ({self_arg}{non_self_args})) {{
+                    mocktopus::MockResult::Continue({arg_replacement_tuple}) => {{
                         {self_arg_replacement}
                         {non_self_arg_return}
                     }},
-                    MockResult::Return(result) => return result,
+                    mocktopus::MockResult::Return(result) => return result,
                 }}
             }};
         }}"#,
@@ -87,7 +85,7 @@ impl<'a> HeaderBuilder<'a> {
 
     fn create_self_arg_str(&self) -> String {
         match self.self_arg {
-            Some(_) => format!("mem::replace(&mut {}, mem::uninitialized())", self.create_mut_self_acqusition_str()),
+            Some(_) => format!("std::mem::replace(&mut {}, std::mem::uninitialized()), ", self.create_mut_self_acqusition_str()),
             None => "".to_string(),
         }
     }
@@ -126,7 +124,7 @@ impl<'a> HeaderBuilder<'a> {
     }
 
     fn create_mut_self_acqusition_str(&self) -> String {
-        format!("*(&self as *const {} as *mut {0}", self.create_self_type_str())
+        format!("*(&self as *const {} as *mut {0})", self.create_self_type_str())
     }
 
     fn create_self_type_str(&self) -> &str {
