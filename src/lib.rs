@@ -58,3 +58,11 @@ impl<T, O, F: FnOnce<T, Output=O>> Mockable<T, O> for F {
         (||()).get_type_id()
     }
 }
+
+pub unsafe fn as_static<T>(t_ref: &T) -> &'static T {
+    &*(t_ref as *const T)
+}
+
+pub unsafe fn as_mut_static<T>(t_ref: &T) -> &'static mut T {
+    &mut *(t_ref as *const T as *mut T)
+}

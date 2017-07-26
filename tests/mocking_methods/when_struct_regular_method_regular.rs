@@ -2,8 +2,6 @@ use super::*;
 
 struct Struct(u8);
 
-static STRUCT_3: Struct = Struct(3);
-
 #[inject_mocks]
 impl Struct {
     fn static_method(arg: bool) -> String {
@@ -57,11 +55,15 @@ mod and_method_is_ref_method {
 
     #[test]
     fn and_continue_mocked_then_runs_with_modified_args() {
-        Struct::ref_method.mock_raw(|_, b| MockResult::Continue((&STRUCT_3, !b)));
+        let struct_3 = Struct(3);
+        let struct_3_ref = unsafe {as_static(&struct_3)};
+        Struct::ref_method.mock_raw(move |_, b| MockResult::Continue((struct_3_ref, !b)));
         let struct_2 = Struct(2);
 
         assert_eq!("3 false", struct_2.ref_method(true));
+
         assert_eq!(2, struct_2.0);
+        assert_eq!(3, struct_3.0);
     }
 
     #[test]
@@ -71,5 +73,63 @@ mod and_method_is_ref_method {
 
         assert_eq!("mocked 2 true", struct_2.ref_method(true));
         assert_eq!(2, struct_2.0);
+    }
+}
+
+mod and_method_is_ref_mut_method {
+    use super::*;
+
+    #[test]
+    fn and_not_mocked_then_runs_normally() {
+        let mut struct_2 = Struct(2);
+
+        assert_eq!("4 true", struct_2.ref_mut_method(true));
+
+        assert_eq!(4, struct_2.0);
+    }
+
+    #[test]
+    fn and_continue_mocked_then_runs_with_modified_args() {
+        let struct_3 = Struct(3);
+        let struct_3_ref = unsafe {as_static(&struct_3)};
+        Struct::ref_mut_method.mock_raw(move |_, b| MockResult::Continue((unsafe {as_mut_static(struct_3_ref)}, !b)));
+        let mut struct_2 = Struct(2);
+
+        assert_eq!("6 false", struct_2.ref_mut_method(true));
+
+        assert_eq!(2, struct_2.0);
+        assert_eq!(6, struct_3.0);
+    }
+
+    #[test]
+    fn and_return_mocked_then_returns_mocking_result() {
+        Struct::ref_mut_method.mock_raw(|a, b| MockResult::Return(format!("mocked {} {}", a.0, b),));
+        let mut struct_2 = Struct(2);
+
+        assert_eq!("mocked 2 true", struct_2.ref_mut_method(true));
+        assert_eq!(2, struct_2.0);
+    }
+}
+
+mod and_method_is_val_method {
+    use super::*;
+
+    #[test]
+    fn and_not_mocked_then_runs_normally() {
+        assert_eq!("2 true", Struct(2).val_method(true));
+    }
+
+    #[test]
+    fn and_continue_mocked_then_runs_with_modified_args() {
+        Struct::val_method.mock_raw(move |_, b| MockResult::Continue((Struct(3), !b)));
+
+        assert_eq!("3 false", Struct(2).val_method(true));
+    }
+
+    #[test]
+    fn and_return_mocked_then_returns_mocking_result() {
+        Struct::val_method.mock_raw(|a, b| MockResult::Return(format!("mocked {} {}", a.0, b),));
+
+        assert_eq!("mocked 2 true", Struct(2).val_method(true));
     }
 }

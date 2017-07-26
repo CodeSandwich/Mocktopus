@@ -7,9 +7,6 @@ authors = ["CodeSandwich <igor.zuk@protonmail.com>"]
 [dependencies]
 mocktopus_injector = { path = "injector" }
 
-[dev-dependencies]
-mocktopus_injector = { path = "injector" }
-
 [workspace]
 members = ["injector"]
 
