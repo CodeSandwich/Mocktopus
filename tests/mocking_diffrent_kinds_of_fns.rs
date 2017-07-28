@@ -10,11 +10,11 @@ mod mocking_methods;
 
 // generic variants: fn, struct, trait
 // self variants: none, val, ref, mut ref
-// fns                   ~ 2 generic combinations * 1 self variants = 2  DONE  1*2=02/02
-// methods               ~ 4 generic combinations * 4 self variants = 16 TODO  4*1=04/16
-// trait methods         ~ 8 generic combinations * 4 self variants = 32 TODO  0*0=00/32
-// default trait methods ~ 8 generic combinations * 4 self variants = 32 TODO  0*0=00/32
-// directory + mod file      file                     test          = 82           06/82
+// fns                   ~ 2 generic combinations * 1 self variants = 2  DONE        2=02/02
+// methods               ~ 4 generic combinations * 4 self variants = 16 TODO  4+1+1+1=07/16
+// trait methods         ~ 8 generic combinations * 4 self variants = 32 TODO        0=00/32
+// default trait methods ~ 8 generic combinations * 4 self variants = 32 TODO        0=00/32
+// directory + mod file      file                     test          = 82               09/82
 
 // naming: function, val_method, ref_method, ref_mut_method, Struct, Trait
 // tested fn has <self if method> + bool + <1 if fn generic> + <1 if trait generic> Display args

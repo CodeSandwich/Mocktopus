@@ -1,10 +1,8 @@
+use display_delegate::DisplayDelegate;
+use std::fmt::{Error, Formatter};
 use syn::{ExprKind, FnArg, Ident, Mutability, Pat, self, Stmt};
 
 const ARG_REPLACEMENT_TUPLE_NAME: &str = "replacement";
-
-macro_rules! error_msg {
-    ($msg:expr) => { concat!("Mocktopus internal error: ", $msg) }
-}
 
 #[derive(Default)]
 pub struct HeaderBuilder<'a> {
@@ -39,16 +37,7 @@ impl<'a> HeaderBuilder<'a> {
         self
     }
 
-    pub fn build(&self) -> Vec<Stmt> {
-        let header_str = self.create_header_block_str();
-        let header_expr = syn::parse_expr(&header_str).expect(error_msg!("generated header unparsable"));
-        match header_expr.node {
-            ExprKind::Block(_, block) => block.stmts,
-            _ => panic!(error_msg!("generated header not a block")),
-        }
-    }
-
-    fn create_header_block_str(&self) -> String {
+    pub fn build(&self) -> String {
         format!(
             r#"{{
             let ({non_self_args}) = {block_unsafety} {{
@@ -61,79 +50,80 @@ impl<'a> HeaderBuilder<'a> {
                 }}
             }};
         }}"#,
-            block_unsafety = self.create_block_unsafety_str(),
-            full_fn_name = self.create_full_fn_name_str(),
-            self_arg = self.create_self_arg_str(),
-            non_self_args = self.create_non_self_args_str(),
-            arg_replacement_tuple = ARG_REPLACEMENT_TUPLE_NAME,
-            self_arg_replacement = self.create_self_replacement_str(),
-            non_self_arg_return = self.create_non_self_return_str())
+            block_unsafety          = DisplayDelegate::new(|f| self.write_block_unsafety(f)),
+            full_fn_name            = DisplayDelegate::new(|f| self.write_full_fn_name(f)),
+            self_arg                = DisplayDelegate::new(|f| self.write_self_arg(f)),
+            non_self_args           = DisplayDelegate::new(|f| self.write_non_self_args(f)),
+            arg_replacement_tuple   = ARG_REPLACEMENT_TUPLE_NAME,
+            self_arg_replacement    = DisplayDelegate::new(|f| self.write_self_replacement(f)),
+            non_self_arg_return     = DisplayDelegate::new(|f| self.write_non_self_return(f)))
     }
 
-    fn create_block_unsafety_str(&self) -> &str {
+    fn write_block_unsafety(&self, formatter: &mut Formatter) -> Result<(), Error> {
         match self.self_arg {
-            Some(_) => "unsafe",
-            None => "",
+            Some(_) => write!(formatter, "unsafe"),
+            None => Ok(()),
         }
     }
 
-    fn create_full_fn_name_str(&self) -> String {
-        format!("{}{}",
-                if self.is_method { "Self::" } else { "" },
-                self.fn_ident.expect(error_msg!("fn name not set")).as_ref())
+    fn write_full_fn_name(&self, formatter: &mut Formatter) -> Result<(), Error> {
+        if self.is_method {
+            write!(formatter, "Self::")?;
+        }
+        write!(formatter, "{}", self.fn_ident.expect(error_msg!("fn name not set")).as_ref())
     }
 
-    fn create_self_arg_str(&self) -> String {
+    fn write_self_arg(&self, formatter: &mut Formatter) -> Result<(), Error> {
         match self.self_arg {
-            Some(_) => format!("std::mem::replace(&mut {}, std::mem::uninitialized()), ", self.create_mut_self_acqusition_str()),
-            None => "".to_string(),
+            Some(_) => write!(formatter, "std::mem::replace(&mut {}, std::mem::uninitialized()), ",
+                              DisplayDelegate::new(|f| self.write_mut_self_acqusition(f))),
+            None => Ok(()),
         }
     }
 
-    fn create_non_self_args_str(&self) -> String {
-        let mut input_args_str = String::new();
+    fn write_non_self_args(&self, formatter: &mut Formatter) -> Result<(), Error> {
         for arg in self.non_self_args.expect(error_msg!("passed inputs not set")) {
             match *arg {
-                FnArg::Captured(Pat::Ident(_, ref ident, None), _) => input_args_str.push_str(ident.as_ref()),
+                FnArg::Captured(Pat::Ident(_, ref ident, None), _) => write!(formatter, "{}, ", ident.as_ref())?,
                 _ => panic!(error_msg!("invalid function input '{:?}'"), arg),
             };
-            input_args_str.push_str(", ");
         };
-        input_args_str
+        Ok(())
     }
 
-    fn create_self_replacement_str(&self) -> String {
+    fn write_self_replacement(&self, formatter: &mut Formatter) -> Result<(), Error> {
         match self.self_arg {
-            Some(_) => format!("{} = {}.0;", self.create_mut_self_acqusition_str(), ARG_REPLACEMENT_TUPLE_NAME),
-            None => "".to_string(),
+            Some(_) => write!(formatter, "{} = {}.0;", DisplayDelegate::new(|f| self.write_mut_self_acqusition(f)),
+                              ARG_REPLACEMENT_TUPLE_NAME),
+            None => Ok(()),
         }
     }
 
-    fn create_non_self_return_str(&self) -> String {
+    fn write_non_self_return(&self, formatter: &mut Formatter) -> Result<(), Error> {
         match self.self_arg {
             Some(_) => {
-                let mut non_self_return_str = "(".to_string();
+                write!(formatter, "(")?;
                 for i in 0..self.non_self_args.expect(error_msg!("returned inputs not set")).len() {
-                    non_self_return_str.push_str(&format!("{}.{}, ", ARG_REPLACEMENT_TUPLE_NAME, i + 1));
+                    write!(formatter, "{}.{}, ", ARG_REPLACEMENT_TUPLE_NAME, i + 1)?;
                 }
-                non_self_return_str.push(')');
-                non_self_return_str
+                write!(formatter, ")")
             },
-            None => ARG_REPLACEMENT_TUPLE_NAME.to_string()
+            None => write!(formatter, "{}", ARG_REPLACEMENT_TUPLE_NAME)
         }
     }
 
-    fn create_mut_self_acqusition_str(&self) -> String {
-        format!("*(&self as *const {} as *mut {0})", self.create_self_type_str())
+    fn write_mut_self_acqusition(&self, formatter: &mut Formatter) -> Result<(), Error> {
+        write!(formatter, "*(&self as *const {0} as *mut {0})", DisplayDelegate::new(|f| self.write_self_type(f)))
     }
 
-    fn create_self_type_str(&self) -> &str {
-        match self.self_arg {
-            Some(&FnArg::SelfRef(_, Mutability::Immutable)) => "&Self",
-            Some(&FnArg::SelfRef(_, Mutability::Mutable)) => "&mut Self",
-            Some(&FnArg::SelfValue(_)) => "Self",
+    fn write_self_type(&self, formatter: &mut Formatter) -> Result<(), Error> {
+        let prefix = match self.self_arg {
+            Some(&FnArg::SelfRef(_, Mutability::Immutable)) => "&",
+            Some(&FnArg::SelfRef(_, Mutability::Mutable)) => "&mut ",
+            Some(&FnArg::SelfValue(_)) => "",
             _ => panic!(error_msg!("invalid self arg: '{:?}'"), self.self_arg),
-        }
+        };
+        write!(formatter, "{}Self", prefix)
     }
 }
 
