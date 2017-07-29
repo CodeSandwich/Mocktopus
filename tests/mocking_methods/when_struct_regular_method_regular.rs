@@ -55,13 +55,12 @@ mod and_method_is_ref_method {
 
     #[test]
     fn and_continue_mocked_then_runs_with_modified_args() {
+        let struct_2 = Struct(2);
         let struct_3 = Struct(3);
         let struct_3_ref = unsafe {as_static(&struct_3)};
         Struct::ref_method.mock_raw(move |_, b| MockResult::Continue((struct_3_ref, !b)));
-        let struct_2 = Struct(2);
 
         assert_eq!("3 false", struct_2.ref_method(true));
-
         assert_eq!(2, struct_2.0);
         assert_eq!(3, struct_3.0);
     }
@@ -84,19 +83,17 @@ mod and_method_is_ref_mut_method {
         let mut struct_2 = Struct(2);
 
         assert_eq!("4 true", struct_2.ref_mut_method(true));
-
         assert_eq!(4, struct_2.0);
     }
 
     #[test]
     fn and_continue_mocked_then_runs_with_modified_args() {
+        let mut struct_2 = Struct(2);
         let struct_3 = Struct(3);
         let struct_3_ref = unsafe {as_static(&struct_3)};
         Struct::ref_mut_method.mock_raw(move |_, b| MockResult::Continue((unsafe {as_mut_static(struct_3_ref)}, !b)));
-        let mut struct_2 = Struct(2);
 
         assert_eq!("6 false", struct_2.ref_mut_method(true));
-
         assert_eq!(2, struct_2.0);
         assert_eq!(6, struct_3.0);
     }
