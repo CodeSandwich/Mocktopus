@@ -67,8 +67,8 @@ mod and_method_is_ref_method {
 
     #[test]
     fn and_return_mocked_then_returns_mocking_result() {
-        Struct::ref_method.mock_raw(|a, b| MockResult::Return(format!("mocked {} {}", a.0, b),));
         let struct_2 = Struct(2);
+        Struct::ref_method.mock_raw(|a, b| MockResult::Return(format!("mocked {} {}", a.0, b),));
 
         assert_eq!("mocked 2 true", struct_2.ref_method(true));
         assert_eq!(2, struct_2.0);
@@ -100,8 +100,8 @@ mod and_method_is_ref_mut_method {
 
     #[test]
     fn and_return_mocked_then_returns_mocking_result() {
-        Struct::ref_mut_method.mock_raw(|a, b| MockResult::Return(format!("mocked {} {}", a.0, b),));
         let mut struct_2 = Struct(2);
+        Struct::ref_mut_method.mock_raw(|a, b| MockResult::Return(format!("mocked {} {}", a.0, b),));
 
         assert_eq!("mocked 2 true", struct_2.ref_mut_method(true));
         assert_eq!(2, struct_2.0);

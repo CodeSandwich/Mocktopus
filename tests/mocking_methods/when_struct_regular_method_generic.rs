@@ -113,9 +113,9 @@ mod and_method_is_ref_mut_method {
 
     #[test]
     fn and_return_mocked_then_returns_mocking_result() {
-        Struct::ref_mut_method::<f32>.mock_raw(|a, b, c| MockResult::Return(format!("mocked {} {} {}", a.0, b, c),));
         let mut struct_2 = Struct(2);
         let mut struct_4 = Struct(4);
+        Struct::ref_mut_method::<f32>.mock_raw(|a, b, c| MockResult::Return(format!("mocked {} {} {}", a.0, b, c),));
 
         assert_eq!("mocked 2 true 1.5", struct_2.ref_mut_method(true, 1.5f32));
         assert_eq!(2, struct_2.0);
