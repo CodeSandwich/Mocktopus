@@ -50,16 +50,16 @@ impl<'a> HeaderBuilder<'a> {
     pub fn build(&self) -> Vec<Stmt> {
         let header_str = format!(
             r#"{{
-            let ({non_self_args}) = {block_unsafety} {{
-                match mocktopus::Mockable::call_mock(&{full_fn_name}, ({self_arg}{non_self_args})) {{
-                    mocktopus::MockResult::Continue({arg_replacement_tuple}) => {{
-                        {self_arg_replacement}
-                        {non_self_arg_return}
-                    }},
-                    mocktopus::MockResult::Return(result) => return result,
-                }}
-            }};
-        }}"#,
+                let ({non_self_args}) = {block_unsafety} {{
+                    match mocktopus::Mockable::call_mock(&{full_fn_name}, ({self_arg}{non_self_args})) {{
+                        mocktopus::MockResult::Continue({arg_replacement_tuple}) => {{
+                            {self_arg_replacement}
+                            {non_self_arg_return}
+                        }},
+                        mocktopus::MockResult::Return(result) => return result,
+                    }}
+                }};
+            }}"#,
             block_unsafety          = DisplayDelegate::new(|f| self.write_block_unsafety(f)),
             full_fn_name            = DisplayDelegate::new(|f| self.write_full_fn_name(f)),
             self_arg                = DisplayDelegate::new(|f| self.write_self_arg(f)),
