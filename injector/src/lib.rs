@@ -4,10 +4,6 @@ extern crate proc_macro;
 extern crate syn;
 extern crate quote;
 
-macro_rules! error_msg {
-    ($msg:expr) => { concat!("Mocktopus internal error: ", $msg) }
-}
-
 mod display_delegate;
 mod header_builder;
 
@@ -16,7 +12,7 @@ use proc_macro::TokenStream;
 use quote::{Tokens, ToTokens};
 use std::mem;
 use std::str::FromStr;
-use syn::{BindingMode, Block, Constness, ExprKind, FnArg, Generics, Ident, ImplItem, ImplItemKind, Item, ItemKind,
+use syn::{BindingMode, Block, Constness, FnArg, Generics, Ident, ImplItem, ImplItemKind, Item, ItemKind,
         MethodSig, Mutability, Pat, Path, Ty};
 
 #[proc_macro_attribute]
@@ -56,22 +52,19 @@ fn inject_mod(items_opt: Option<&mut Vec<Item>>) {
 }
 
 fn inject_impl(_generics: &Generics, path: Option<&Path>, _ty: &Box<Ty>, items: &mut Vec<ImplItem>) {
-//    println!("PATH\n{:#?}\nTY\n{:#?}\nITEMS\n{:#?}", path, ty, items);
-    if path.is_some() {
-        return; // no trait support yet
-    }
+    let builder = HeaderBuilder::default()
+        .set_is_method()
+        .set_trait_path(path);
     for item in items {
         if let ImplItemKind::Method(
                 MethodSig {
                     unsafety: _,
-                    constness: ref constness_ref,
+                    constness: ref constness,
                     abi: _,
-                    decl: ref mut decl_ref,
+                    decl: ref mut decl,
                     generics: _},
                 ref mut block) = item.node {
-            let builder = HeaderBuilder::default()
-                .set_is_method(true);
-            inject_fn(builder, &item.ident, &mut decl_ref.inputs, constness_ref, block);
+            inject_fn(builder.clone(), &item.ident, &mut decl.inputs, constness, block);
         }
     }
 }
@@ -103,15 +96,10 @@ fn inject_fn(builder: HeaderBuilder, fn_name: &Ident, inputs: &mut Vec<FnArg>, c
         return
     }
     unignore_fn_args(inputs);
-    let header_str = builder
+    let header_stmts = builder
         .set_fn_name(fn_name)
         .set_input_args(inputs)
         .build();
-    let header_expr = syn::parse_expr(&header_str).expect(error_msg!("generated header unparsable"));
-    let header_stmts = match header_expr.node {
-        ExprKind::Block(_, block) => block.stmts,
-        _ => panic!(error_msg!("generated header not a block")),
-    };
     let mut body_stmts = mem::replace(&mut block.stmts, header_stmts);
     block.stmts.append(&mut body_stmts);
 }
