@@ -3,6 +3,8 @@
 extern crate mocktopus;
 
 use mocktopus::*;
+#[allow(unused_imports)] //Linter error
+use std::ascii::AsciiExt;
 use std::fmt::Display;
 
 mod mocking_fns;
@@ -13,7 +15,7 @@ mod mocking_traits;
 // self variants: none, val, ref, mut ref
 // fns                   ~ 2 generic combinations * 1 self variants = 2  DONE                2=02/02
 // methods               ~ 4 generic combinations * 4 self variants = 16 TODO          4+4+4+4=16/16
-// trait methods         ~ 8 generic combinations * 4 self variants = 32 TODO  4+4+4+4+0+0+0+0=16/32
+// trait methods         ~ 8 generic combinations * 4 self variants = 32 TODO  4+4+4+4+4+0+0+0=16/32
 // default trait methods ~ 8 generic combinations * 4 self variants = 32 TODO  0+0+0+0+0+0+0+0=00/32
 // directory + mod file      file                     test          = 82                       34/82
 

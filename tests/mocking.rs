@@ -182,6 +182,9 @@ mod annotating_function_twice_makes_it_injected_once {
         }
     }
 
+    //TODO TEST TRAIT VARIANT DEFAULT LEAKAGE
+    //TODO TEST REGULAR AND TRAIT METHODS LEAKAGE
+    //TODO TEST COMPLEX TRAIT NAMES (WHAT ABOUT LIFETIMES?)
     #[test]
     // Actually it gets injects twice TODO fix
     fn ___fix_me___function_gets_injected_once() {

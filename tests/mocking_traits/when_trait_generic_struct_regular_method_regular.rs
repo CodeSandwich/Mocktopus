@@ -1,0 +1,163 @@
+use super::*;
+
+trait Trait<V: Display> {
+    fn static_method(arg: bool, trait_generic: V) -> String;
+    fn ref_method(&self, arg: bool, trait_generic: V) -> String;
+    fn ref_mut_method(&mut self, arg: bool, trait_generic: V) -> String;
+    fn val_method(self, arg: bool, trait_generic: V) -> String;
+}
+
+struct Struct(u8);
+
+#[inject_mocks]
+impl<V: Display> Trait<V> for Struct {
+    fn static_method(arg: bool, trait_generic: V) -> String {
+        format!("{} {}", arg, trait_generic)
+    }
+
+    fn ref_method(&self, arg: bool, trait_generic: V) -> String {
+        format!("{} {} {}", self.0, arg, trait_generic)
+    }
+
+    fn ref_mut_method(&mut self, arg: bool, trait_generic: V) -> String {
+        self.0 *= 2;
+        format!("{} {} {}", self.0, arg, trait_generic)
+    }
+
+    fn val_method(self, arg: bool, trait_generic: V) -> String {
+        format!("{} {} {}", self.0, arg, trait_generic)
+    }
+}
+
+mod and_method_is_static {
+    use super::*;
+
+    #[test]
+    fn and_not_mocked_then_runs_normally() {
+        assert_eq!("true a", Struct::static_method(true, 'a'));
+        assert_eq!("true abc", Struct::static_method(true, "abc"));
+    }
+
+    #[test]
+    fn and_continue_mocked_then_runs_with_modified_args() {
+        <Struct as Trait<char>>::static_method.mock_raw(|a, b| MockResult::Continue((!a, b.to_ascii_uppercase())));
+
+        assert_eq!("false A", Struct::static_method(true, 'a'));
+        assert_eq!("true abc", Struct::static_method(true, "abc"));
+    }
+
+    #[test]
+    fn and_return_mocked_then_returns_mocking_result() {
+        <Struct as Trait<char>>::static_method.mock_raw(|a, b| MockResult::Return(format!("mocked {} {}", a, b),));
+
+        assert_eq!("mocked true a", Struct::static_method(true, 'a'));
+        assert_eq!("true abc", Struct::static_method(true, "abc"));
+    }
+}
+
+mod and_method_is_ref_method {
+    use super::*;
+
+    #[test]
+    fn and_not_mocked_then_runs_normally() {
+        assert_eq!("2 true a", Struct(2).ref_method(true, 'a'));
+        assert_eq!("2 true abc", Struct(2).ref_method(true, "abc"));
+    }
+
+    #[test]
+    fn and_continue_mocked_then_runs_with_modified_args() {
+        let struct_2 = Struct(2);
+        let struct_3 = Struct(3);
+        let struct_3_ref = unsafe {as_static(&struct_3)};
+        <Struct as Trait<char>>::ref_method.mock_raw(move |_, b, c|
+            MockResult::Continue((struct_3_ref, !b, c.to_ascii_uppercase())));
+
+        assert_eq!("3 false A", struct_2.ref_method(true, 'a'));
+        assert_eq!(2, struct_2.0);
+        assert_eq!(3, struct_3.0);
+        assert_eq!("2 true abc", Struct(2).ref_method(true, "abc"));
+    }
+
+    #[test]
+    fn and_return_mocked_then_returns_mocking_result() {
+        let struct_2 = Struct(2);
+        <Struct as Trait<char>>::ref_method.mock_raw(|a, b, c|
+            MockResult::Return(format!("mocked {} {} {}", a.0, b, c),));
+
+        assert_eq!("mocked 2 true a", struct_2.ref_method(true, 'a'));
+        assert_eq!(2, struct_2.0);
+        assert_eq!("2 true abc", Struct(2).ref_method(true, "abc"));
+    }
+}
+
+mod and_method_is_ref_mut_method {
+    use super::*;
+
+    #[test]
+    fn and_not_mocked_then_runs_normally() {
+        let mut struct_2 = Struct(2);
+        let mut struct_4 = Struct(4);
+
+        assert_eq!("4 true a", struct_2.ref_mut_method(true, 'a'));
+        assert_eq!(4, struct_2.0);
+        assert_eq!("8 true abc", struct_4.ref_mut_method(true, "abc"));
+        assert_eq!(8, struct_4.0);
+    }
+
+    #[test]
+    fn and_continue_mocked_then_runs_with_modified_args() {
+        let mut struct_2 = Struct(2);
+        let struct_3 = Struct(3);
+        let struct_3_ref = unsafe {as_static(&struct_3)};
+        let mut struct_4 = Struct(4);
+        <Struct as Trait<char>>::ref_mut_method.mock_raw(move |_, b, c|
+            MockResult::Continue((unsafe {as_mut_static(struct_3_ref)}, !b, c.to_ascii_uppercase())));
+
+        assert_eq!("6 false A", struct_2.ref_mut_method(true, 'a'));
+        assert_eq!(2, struct_2.0);
+        assert_eq!(6, struct_3.0);
+        assert_eq!("8 true abc", struct_4.ref_mut_method(true, "abc"));
+        assert_eq!(8, struct_4.0);
+    }
+
+    #[test]
+    fn and_return_mocked_then_returns_mocking_result() {
+        let mut struct_2 = Struct(2);
+        let mut struct_4 = Struct(4);
+        <Struct as Trait<char>>::ref_mut_method.mock_raw(|a, b, c|
+            MockResult::Return(format!("mocked {} {} {}", a.0, b, c),));
+
+        assert_eq!("mocked 2 true a", struct_2.ref_mut_method(true, 'a'));
+        assert_eq!(2, struct_2.0);
+        assert_eq!("8 true abc", struct_4.ref_mut_method(true, "abc"));
+        assert_eq!(8, struct_4.0);
+    }
+}
+
+mod and_method_is_val_method {
+    use super::*;
+
+    #[test]
+    fn and_not_mocked_then_runs_normally() {
+        assert_eq!("2 true a", Struct(2).val_method(true, 'a'));
+        assert_eq!("2 true abc", Struct(2).val_method(true, "abc"));
+    }
+
+    #[test]
+    fn and_continue_mocked_then_runs_with_modified_args() {
+        <Struct as Trait<char>>::val_method.mock_raw(move |_, b, c|
+            MockResult::Continue((Struct(3), !b, c.to_ascii_uppercase())));
+
+        assert_eq!("3 false A", Struct(2).val_method(true, 'a'));
+        assert_eq!("2 true abc", Struct(2).val_method(true, "abc"));
+    }
+
+    #[test]
+    fn and_return_mocked_then_returns_mocking_result() {
+        <Struct as Trait<char>>::val_method.mock_raw(|a, b, c|
+            MockResult::Return(format!("mocked {} {} {}", a.0, b, c),));
+
+        assert_eq!("mocked 2 true a", Struct(2).val_method(true, 'a'));
+        assert_eq!("2 true abc", Struct(2).val_method(true, "abc"));
+    }
+}
