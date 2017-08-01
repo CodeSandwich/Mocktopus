@@ -58,7 +58,6 @@ mod and_method_is_static {
     }
 }
 
-
 mod and_method_is_ref_method {
     use super::*;
 

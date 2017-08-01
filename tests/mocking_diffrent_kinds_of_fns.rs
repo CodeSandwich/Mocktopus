@@ -14,7 +14,7 @@ mod mocking_traits;
 // generic variants: fn, struct, trait
 // self variants: none, val, ref, mut ref
 // fns                   ~ 2 generic combinations * 1 self variants = 2  DONE                2=02/02
-// methods               ~ 4 generic combinations * 4 self variants = 16 TODO          4+4+4+4=16/16
+// methods               ~ 4 generic combinations * 4 self variants = 16 DONE          4+4+4+4=16/16
 // trait methods         ~ 8 generic combinations * 4 self variants = 32 TODO  4+4+4+4+4+4+4+0=28/32
 // default trait methods ~ 8 generic combinations * 4 self variants = 32 TODO  0+0+0+0+0+0+0+0=00/32
 // directory + mod file      file                     test          = 82                       46/82
