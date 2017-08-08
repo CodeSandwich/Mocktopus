@@ -1,7 +1,10 @@
 use display_delegate::DisplayDelegate;
+use lifetime_remover::remove_lifetimes_from_path;
 use std::fmt::{Error, Formatter};
-use quote::{Tokens, ToTokens};
+use std::str::FromStr;
 use syn::{self, ExprKind, FnArg, Ident, Mutability, Pat, Path, Stmt};
+use proc_macro::TokenStream;
+use quote::{Tokens, ToTokens};
 
 const ARG_REPLACEMENT_TUPLE_NAME: &str = "replacement";
 
@@ -83,16 +86,21 @@ impl<'a> HeaderBuilder<'a> {
 
     fn write_full_fn_name(&self, formatter: &mut Formatter) -> Result<(), Error> {
         match (self.is_method, self.trait_path) {
-            (true, Some(path)) => {
-                let mut tokens = Tokens::new();
-                path.to_tokens(&mut tokens);
-                write!(formatter, "<Self as {}>::", tokens.as_str())?
-            },
+            (true, Some(path)) => write!(formatter, "<Self as {}>::",
+                                         DisplayDelegate::new(|f| Self::write_trait_casting_name(f, path)))?,
             (true, None) => write!(formatter, "Self::")?,
             (false, Some(_)) => panic!(error_msg!("trait path set on non-method")),
             (false, None) => (),
         };
         write!(formatter, "{}", self.fn_ident.expect(error_msg!("fn name not set")).as_ref())
+    }
+
+    fn write_trait_casting_name(formatter: &mut Formatter, path: &Path) -> Result<(), Error> {
+        let mut path_without_lifetimes = path.clone();
+        remove_lifetimes_from_path(&mut path_without_lifetimes);
+        let mut tokens = Tokens::new();
+        path_without_lifetimes.to_tokens(&mut tokens);
+        write!(formatter, "{}", tokens.as_str())
     }
 
     fn write_self_arg(&self, formatter: &mut Formatter) -> Result<(), Error> {

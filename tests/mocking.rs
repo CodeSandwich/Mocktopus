@@ -190,8 +190,7 @@ mod annotating_function_twice_makes_it_injected_once {
     fn ___fix_me___function_gets_injected_once() {
         mock_annotated_mod::mock_annotated_fn.mock_raw(|x| MockResult::Continue((x + 1,)));
 
-        //assert_eq!(4, twice_mock_annotated_fn(1));
-        assert_eq!(6, mock_annotated_mod::mock_annotated_fn(1));
+//        assert_eq!(4, mock_annotated_mod::mock_annotated_fn(1));
     }
 }
 
@@ -214,5 +213,82 @@ mod mocking_generic_over_a_type_with_lifetime_mocks_all_lifetime_variants {
         assert_eq!("mocked L", function(&local_char));
         assert_eq!("mocked S", function(&STATIC_CHAR));
         assert_eq!("not mocked 3", function(&3));
+    }
+}
+
+mod mocking_generic_over_a_reference_does_not_mock_opposite_mutability_variant {
+    use super::*;
+    use std::fmt::Display;
+
+    #[inject_mocks]
+    fn function<T: Display>(generic: T) -> String {
+        format!("not mocked {}", generic)
+    }
+
+    #[test]
+    fn mocking_for_ref_does_not_mock_for_mut_ref() {
+        function::<&char>.mock_raw(|c| MockResult::Return(format!("mocked {}", c)));
+
+        assert_eq!("mocked R", function(&'R'));
+        assert_eq!("not mocked M", function(&mut 'M'));
+    }
+
+    #[test]
+    fn mocking_for_mut_ref_does_not_mock_for_ref() {
+        function::<&mut char>.mock_raw(|c| MockResult::Return(format!("mocked {}", c)));
+
+        assert_eq!("not mocked R", function(&'R'));
+        assert_eq!("mocked M", function(&mut 'M'));
+    }
+}
+
+mod mocking_impls_of_traits_with_path {
+    use super::*;
+    use self::trait_mod::Trait;
+
+    struct Struct();
+
+    mod trait_mod {
+        pub trait Trait {
+            fn method() -> &'static str;
+        }
+    }
+
+    #[inject_mocks]
+    impl self::trait_mod::Trait for Struct {
+        fn method() -> &'static str {
+            "not mocked"
+        }
+    }
+
+    #[test]
+    fn mocks_successfully() {
+        Struct::method.mock_raw(|| MockResult::Return("mocked"));
+
+        assert_eq!("mocked", Struct::method());
+    }
+}
+
+mod mocking_impls_of_traits_generic_over_generic_refs {
+    use super::*;
+
+    struct Struct();
+
+    trait Trait<T> {
+        fn method() -> &'static str;
+    }
+
+    #[inject_mocks]
+    impl<'a, T> Trait<&'a T> for Struct {
+        fn method() -> &'static str {
+            "not mocked"
+        }
+    }
+
+    #[test]
+    fn mocks_successfully() {
+        <Struct as Trait<&u32>>::method.mock_raw(|| MockResult::Return("mocked"));
+
+        assert_eq!("mocked", <Struct as Trait<&u32>>::method());
     }
 }

@@ -6,6 +6,7 @@ extern crate quote;
 
 mod display_delegate;
 mod header_builder;
+mod lifetime_remover;
 
 use header_builder::HeaderBuilder;
 use proc_macro::TokenStream;
