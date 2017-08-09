@@ -1,10 +1,16 @@
 #![feature(const_fn, proc_macro)]
 
-//extern crate mocktopus_injector;
 extern crate mocktopus;
 
-//use mocktopus_injector::inject_mocks;
 use mocktopus::*;
+#[allow(unused_imports)] //Linter error
+use std::ascii::AsciiExt;
+use std::fmt::Display;
+
+mod mocking_fns;
+mod mocking_methods;
+mod mocking_trait_defaults;
+mod mocking_traits;
 
 mod mocks_do_not_leak_between_tests {
     use super::*;
@@ -183,8 +189,6 @@ mod annotating_function_twice_makes_it_injected_once {
     }
 
     //TODO TEST TRAIT VARIANT DEFAULT LEAKAGE
-    //TODO TEST REGULAR AND TRAIT METHODS LEAKAGE
-    //TODO TEST COMPLEX TRAIT NAMES (WHAT ABOUT LIFETIMES?)
     #[test]
     // Actually it gets injects twice TODO fix
     fn ___fix_me___function_gets_injected_once() {
@@ -239,56 +243,5 @@ mod mocking_generic_over_a_reference_does_not_mock_opposite_mutability_variant {
 
         assert_eq!("not mocked R", function(&'R'));
         assert_eq!("mocked M", function(&mut 'M'));
-    }
-}
-
-mod mocking_impls_of_traits_with_path {
-    use super::*;
-    use self::trait_mod::Trait;
-
-    struct Struct();
-
-    mod trait_mod {
-        pub trait Trait {
-            fn method() -> &'static str;
-        }
-    }
-
-    #[inject_mocks]
-    impl self::trait_mod::Trait for Struct {
-        fn method() -> &'static str {
-            "not mocked"
-        }
-    }
-
-    #[test]
-    fn mocks_successfully() {
-        Struct::method.mock_raw(|| MockResult::Return("mocked"));
-
-        assert_eq!("mocked", Struct::method());
-    }
-}
-
-mod mocking_impls_of_traits_generic_over_generic_refs {
-    use super::*;
-
-    struct Struct();
-
-    trait Trait<T> {
-        fn method() -> &'static str;
-    }
-
-    #[inject_mocks]
-    impl<'a, T> Trait<&'a T> for Struct {
-        fn method() -> &'static str {
-            "not mocked"
-        }
-    }
-
-    #[test]
-    fn mocks_successfully() {
-        <Struct as Trait<&u32>>::method.mock_raw(|| MockResult::Return("mocked"));
-
-        assert_eq!("mocked", <Struct as Trait<&u32>>::method());
     }
 }

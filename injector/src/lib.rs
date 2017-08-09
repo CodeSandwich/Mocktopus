@@ -40,7 +40,7 @@ fn inject_item(item: &mut Item) {
         ItemKind::Impl(_, _, _, ref path, ref ty, ref mut items) =>
             inject_impl(path.as_ref(), items),
         ItemKind::Trait(ref mut unsafety, ref mut generics, ref mut ty_param_bound, ref mut items) =>
-            inject_trait_default(items),
+            inject_trait_defaults(items),
         _ => (),
     }
 }
@@ -71,7 +71,7 @@ fn inject_impl(trait_path: Option<&Path>, items: &mut Vec<ImplItem>) {
     }
 }
 
-fn inject_trait_default(items: &mut Vec<TraitItem>) {
+fn inject_trait_defaults(items: &mut Vec<TraitItem>) {
     for item in items {
         if let TraitItemKind::Method(
             MethodSig {
