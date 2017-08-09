@@ -14,7 +14,7 @@ use quote::{Tokens, ToTokens};
 use std::mem;
 use std::str::FromStr;
 use syn::{BindingMode, Block, Constness, FnArg, Generics, Ident, ImplItem, ImplItemKind, Item, ItemKind,
-        MethodSig, Mutability, Pat, Path, Ty};
+        MethodSig, Mutability, Pat, Path, TraitItem, TraitItemKind, Ty};
 
 #[proc_macro_attribute]
 pub fn inject_mocks(_: TokenStream, token_stream: TokenStream) -> TokenStream {
@@ -37,9 +37,10 @@ fn inject_item(item: &mut Item) {
             inject_mod(items_opt.as_mut()),
         ItemKind::Fn(ref mut decl, _, ref constness, _, _, ref mut block) =>
             inject_fn(HeaderBuilder::default(), &item.ident, &mut decl.inputs, constness, block),
-        ItemKind::Impl(_, _, ref generics, ref path, ref ty, ref mut items) =>
-            inject_impl(generics, path.as_ref(), ty, items),
-        //        ItemKind::Trait(ref mut unsafety, ref mut generics, ref mut ty_param_bound, ref mut items) => unimplemented!(),
+        ItemKind::Impl(_, _, _, ref path, ref ty, ref mut items) =>
+            inject_impl(path.as_ref(), items),
+        ItemKind::Trait(ref mut unsafety, ref mut generics, ref mut ty_param_bound, ref mut items) =>
+            inject_trait_default(items),
         _ => (),
     }
 }
@@ -52,45 +53,40 @@ fn inject_mod(items_opt: Option<&mut Vec<Item>>) {
     }
 }
 
-fn inject_impl(_generics: &Generics, path: Option<&Path>, _ty: &Box<Ty>, items: &mut Vec<ImplItem>) {
-    let builder = HeaderBuilder::default()
-        .set_is_method()
-        .set_trait_path(path);
+fn inject_impl(trait_path: Option<&Path>, items: &mut Vec<ImplItem>) {
     for item in items {
         if let ImplItemKind::Method(
-                MethodSig {
-                    unsafety: _,
-                    constness: ref constness,
-                    abi: _,
-                    decl: ref mut decl,
-                    generics: _},
-                ref mut block) = item.node {
-            inject_fn(builder.clone(), &item.ident, &mut decl.inputs, constness, block);
+            MethodSig {
+                unsafety: _,
+                ref constness,
+                abi: _,
+                ref mut decl,
+                generics: _},
+            ref mut block) = item.node {
+            let builder = HeaderBuilder::default()
+                .set_is_method()
+                .set_trait_path(trait_path);
+            inject_fn(builder, &item.ident, &mut decl.inputs, constness, block);
         }
     }
 }
 
-//    pub struct MethodSig {
-//        pub unsafety: Unsafety,
-//        pub constness: Constness,
-//        pub abi: Option<Abi>,
-//        pub decl: FnDecl,
-//        pub generics: Generics,
-//    }
-
-
-//    pub struct ImplItem {
-//        pub ident: Ident,
-//        pub vis: Visibility,
-//        pub defaultness: Defaultness,
-//        pub attrs: Vec<Attribute>,
-//        pub node: ImplItemKind,
-//    }
-
-
-    // impl [<path> for] ty {
-    //      <items>
-    // }
+fn inject_trait_default(items: &mut Vec<TraitItem>) {
+    for item in items {
+        if let TraitItemKind::Method(
+            MethodSig {
+                unsafety: _,
+                ref constness,
+                abi: _,
+                ref mut decl,
+                generics: _},
+            Some(ref mut block)) = item.node {
+            let builder = HeaderBuilder::default()
+                .set_is_method();
+            inject_fn(builder, &item.ident, &mut decl.inputs, constness, block);
+        }
+    }
+}
 
 fn inject_fn(builder: HeaderBuilder, fn_name: &Ident, inputs: &mut Vec<FnArg>, constness: &Constness, block: &mut Block) {
     if *constness == Constness::Const {

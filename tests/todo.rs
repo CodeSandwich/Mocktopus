@@ -117,3 +117,38 @@ fn trait_experiments() {
     <S3 as From<&u32>>::from.mock_raw(|_| MockResult::Return(S3(5)));
     assert_eq!(5, S3::from(&f).0);
 }
+
+trait DTrait<T> {
+    fn foo() -> &'static str {
+        "dtrait foo"
+    }
+
+    fn bar(&self) -> &'static str {
+        Self::foo()
+    }
+}
+
+struct DStruct;
+
+impl DTrait<u32> for DStruct {
+    fn foo() -> &'static str {
+        "dstruct impl foo u32"
+    }
+}
+
+impl DTrait<u8> for DStruct {
+    fn foo() -> &'static str {
+        "dstruct impl foo u8"
+    }
+}
+
+impl DStruct {
+    fn foo() -> &'static str {
+        "dstruct foo"
+    }
+}
+
+#[test]
+fn default_trait_precedence() {
+//    assert_eq!("", <DStruct as DTrait<u32>>::bar(&DStruct))
+}
