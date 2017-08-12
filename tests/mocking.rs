@@ -15,7 +15,7 @@ mod mocking_traits;
 mod mock_safe {
     use super::*;
 
-    #[inject_mocks]
+    #[mockable]
     pub fn no_args_returns_str() -> &'static str {
         "not mocked"
     }
@@ -36,7 +36,7 @@ mod mock_safe {
 mod mocks_do_not_leak_between_tests {
     use super::*;
 
-    #[inject_mocks]
+    #[mockable]
     pub fn no_args_returns_str() -> &'static str {
         "not mocked"
     }
@@ -68,7 +68,7 @@ mod mocks_do_not_leak_between_tests {
 mod mocking_does_not_works_for_const_fns {
     use super::*;
 
-    #[inject_mocks]
+    #[mockable]
     pub const fn const_fn() -> u32 {
         1
     }
@@ -91,7 +91,7 @@ mod mocking_does_not_works_for_const_fns {
 mod mocking_captures_ignored_args {
     use super::*;
 
-    #[inject_mocks]
+    #[mockable]
     pub fn two_args_returns_first_ignores_second(x: u32, _: u32) -> u32 {
         x
     }
@@ -122,7 +122,7 @@ mod mocking_does_not_work_for_macro_generated_fns {
         }
     }
 
-    #[inject_mocks]
+    #[mockable]
     fn_generating_macro!();
 
     #[test]
@@ -143,7 +143,7 @@ mod mocking_does_not_work_for_macro_generated_fns {
 mod mock_injecting_works_for_nested_mods {
     use super::*;
 
-    #[inject_mocks]
+    #[mockable]
     mod mod_1 {
         pub fn mod_1_fn() -> &'static str {
             "mod_1_fn not mocked"
@@ -183,7 +183,7 @@ mod mock_injecting_works_for_nested_mods {
     }
 }
 
-#[inject_mocks]
+#[mockable]
 mod mod_file_1;
 
 mod mock_injecting_works_for_nested_mods_in_separate_files {
@@ -213,9 +213,9 @@ mod mock_injecting_works_for_nested_mods_in_separate_files {
 mod annotating_function_twice_makes_it_injected_once {
     use super::*;
 
-    #[inject_mocks]
+    #[mockable]
     mod mock_annotated_mod {
-        #[inject_mocks]
+        #[mockable]
         pub fn mock_annotated_fn(x: u32) -> u32 {
             x * 2
         }
@@ -236,7 +236,7 @@ mod mocking_generic_over_a_type_with_lifetime_mocks_all_lifetime_variants {
     use super::*;
     use std::fmt::Display;
 
-    #[inject_mocks]
+    #[mockable]
     fn function<T: Display>(generic: T) -> String {
         format!("not mocked {}", generic)
     }
@@ -260,7 +260,7 @@ mod mocking_generic_over_a_reference_does_not_mock_opposite_mutability_variant {
     use super::*;
     use std::fmt::Display;
 
-    #[inject_mocks]
+    #[mockable]
     fn function<T: Display>(generic: T) -> String {
         format!("not mocked {}", generic)
     }

@@ -17,7 +17,7 @@ use syn::{BindingMode, Block, Constness, FnArg, Ident, ImplItem, ImplItemKind, I
           Pat, Path, TraitItem, TraitItemKind};
 
 #[proc_macro_attribute]
-pub fn inject_mocks(_: TokenStream, token_stream: TokenStream) -> TokenStream {
+pub fn mockable(_: TokenStream, token_stream: TokenStream) -> TokenStream {
     let in_string = token_stream.to_string();
     let mut parsed = match syn::parse_item(&in_string) {
         Ok(parsed) => parsed,

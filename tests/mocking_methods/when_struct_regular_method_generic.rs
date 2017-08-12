@@ -2,7 +2,7 @@ use super::*;
 
 struct Struct(u8);
 
-#[inject_mocks]
+#[mockable]
 impl Struct {
     fn static_method<T: Display>(arg: bool, method_generic: T) -> String {
         format!("{} {}", arg, method_generic)

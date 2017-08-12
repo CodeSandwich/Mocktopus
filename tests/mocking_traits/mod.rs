@@ -21,7 +21,7 @@ mod mocking_impls_of_traits_with_path {
         }
     }
 
-    #[inject_mocks]
+    #[mockable]
     impl self::trait_mod::Trait for Struct {
         fn method() -> &'static str {
             "not mocked"
@@ -47,7 +47,7 @@ mod mocking_impls_of_traits_generic_over_generic_refs {
         fn method() -> &'static str;
     }
 
-    #[inject_mocks]
+    #[mockable]
     impl<'a, T> Trait<&'a T> for Struct {
         fn method() -> &'static str {
             "not mocked"

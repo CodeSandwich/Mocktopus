@@ -12,7 +12,7 @@ mod when_trait_regular_struct_regular_method_regular;
 mod mocking_default_impl_of_trait_of_struct {
     use super::*;
 
-    #[inject_mocks]
+    #[mockable]
     trait Trait {
         fn method() -> &'static str {
             "not mocked"

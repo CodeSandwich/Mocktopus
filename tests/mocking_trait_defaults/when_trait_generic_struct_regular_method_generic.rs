@@ -1,6 +1,6 @@
 use super::*;
 
-#[inject_mocks]
+#[mockable]
 trait Trait<V: Display>: Sized {
     fn static_method<T: Display>(arg: bool, method_generic: T, trait_generic: V) -> String {
         format!("{} {} {}", arg, method_generic, trait_generic)

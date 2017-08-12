@@ -1,6 +1,6 @@
 use super::*;
 
-#[inject_mocks]
+#[mockable]
 fn function<T: Display>(arg: bool, fn_generic: T) -> String {
     format!("{} {}", arg, fn_generic)
 }

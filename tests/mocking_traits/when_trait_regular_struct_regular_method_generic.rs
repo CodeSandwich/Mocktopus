@@ -9,7 +9,7 @@ trait Trait {
 
 struct Struct(u8);
 
-#[inject_mocks]
+#[mockable]
 impl Trait for Struct {
     fn static_method<T: Display>(arg: bool, method_generic: T) -> String {
         format!("{} {}", arg, method_generic)
