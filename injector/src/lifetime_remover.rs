@@ -1,5 +1,4 @@
-use syn::{self, BareFnTy, ConstExpr, ExprKind, FnArg, FunctionRetTy, Ident, Mutability, MutTy, Pat, Path,
-          PathParameters, Stmt, Ty, TyParamBound};
+use syn::{BareFnTy, ConstExpr, FunctionRetTy, Path, PathParameters, Ty, TyParamBound};
 
 pub fn remove_lifetimes_from_path(path: &mut Path) {
     for path_segment in &mut path.segments {

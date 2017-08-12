@@ -13,8 +13,8 @@ use proc_macro::TokenStream;
 use quote::{Tokens, ToTokens};
 use std::mem;
 use std::str::FromStr;
-use syn::{BindingMode, Block, Constness, FnArg, Generics, Ident, ImplItem, ImplItemKind, Item, ItemKind,
-        MethodSig, Mutability, Pat, Path, TraitItem, TraitItemKind, Ty};
+use syn::{BindingMode, Block, Constness, FnArg, Ident, ImplItem, ImplItemKind, Item, ItemKind, MethodSig, Mutability,
+          Pat, Path, TraitItem, TraitItemKind};
 
 #[proc_macro_attribute]
 pub fn inject_mocks(_: TokenStream, token_stream: TokenStream) -> TokenStream {
@@ -37,9 +37,9 @@ fn inject_item(item: &mut Item) {
             inject_mod(items_opt.as_mut()),
         ItemKind::Fn(ref mut decl, _, ref constness, _, _, ref mut block) =>
             inject_fn(HeaderBuilder::default(), &item.ident, &mut decl.inputs, constness, block),
-        ItemKind::Impl(_, _, _, ref path, ref ty, ref mut items) =>
+        ItemKind::Impl(_, _, _, ref path, _, ref mut items) =>
             inject_impl(path.as_ref(), items),
-        ItemKind::Trait(ref mut unsafety, ref mut generics, ref mut ty_param_bound, ref mut items) =>
+        ItemKind::Trait(_, _, _, ref mut items) =>
             inject_trait_defaults(items),
         _ => (),
     }

@@ -1,9 +1,7 @@
 use display_delegate::DisplayDelegate;
 use lifetime_remover::remove_lifetimes_from_path;
 use std::fmt::{Error, Formatter};
-use std::str::FromStr;
 use syn::{self, ExprKind, FnArg, Ident, Mutability, Pat, Path, Stmt};
-use proc_macro::TokenStream;
 use quote::{Tokens, ToTokens};
 
 const ARG_REPLACEMENT_TUPLE_NAME: &str = "replacement";
