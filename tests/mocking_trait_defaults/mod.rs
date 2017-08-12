@@ -33,7 +33,9 @@ mod mocking_default_impl_of_trait_of_struct {
 
     #[test]
     fn does_not_mock_default_impl_of_other_struct() {
-        Struct1::method.mock_raw(|| MockResult::Return("mocked"));
+        unsafe {
+            Struct1::method.mock_raw(|| MockResult::Return("mocked"));
+        }
 
         assert_eq!("mocked", Struct1::method());
         assert_eq!("not mocked", Struct2::method());

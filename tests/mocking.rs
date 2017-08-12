@@ -12,6 +12,27 @@ mod mocking_methods;
 mod mocking_trait_defaults;
 mod mocking_traits;
 
+mod mock_safe {
+    use super::*;
+
+    #[inject_mocks]
+    pub fn no_args_returns_str() -> &'static str {
+        "not mocked"
+    }
+
+    #[test]
+    fn when_not_mocked_then_returns_not_mocked() {
+        assert_eq!("not mocked", no_args_returns_str());
+    }
+
+    #[test]
+    fn when_mocked_then_returns_mocked() {
+        no_args_returns_str.mock_safe(|| MockResult::Return("mocked"));
+
+        assert_eq!("mocked", no_args_returns_str());
+    }
+}
+
 mod mocks_do_not_leak_between_tests {
     use super::*;
 
@@ -27,7 +48,9 @@ mod mocks_do_not_leak_between_tests {
                 fn $fn_name() {
                     assert_eq!("not mocked", no_args_returns_str(), "function was mocked before mocking");
 
-                    no_args_returns_str.mock_raw(|| MockResult::Return((stringify!($fn_name))));
+                    unsafe {
+                        no_args_returns_str.mock_raw(|| MockResult::Return((stringify!($fn_name))));
+                    }
 
                     assert_eq!(stringify!($fn_name), no_args_returns_str(), "mocking failed");
                 }
@@ -57,7 +80,9 @@ mod mocking_does_not_works_for_const_fns {
 
     #[test]
     fn when_mocked_then_returns_1() {
-        const_fn.mock_raw(|| MockResult::Return(2));
+        unsafe {
+            const_fn.mock_raw(|| MockResult::Return(2));
+        }
 
         assert_eq!(1, const_fn());
     }
@@ -78,7 +103,9 @@ mod mocking_captures_ignored_args {
 
     #[test]
     fn when_mocked_then_returns_second_arg() {
-        two_args_returns_first_ignores_second.mock_raw(|x, y| MockResult::Continue((y, x)));
+        unsafe {
+            two_args_returns_first_ignores_second.mock_raw(|x, y| MockResult::Continue((y, x)));
+        }
 
         assert_eq!(2, two_args_returns_first_ignores_second(1, 2));
     }
@@ -105,7 +132,9 @@ mod mocking_does_not_work_for_macro_generated_fns {
 
     #[test]
     fn when_mocked_then_returns_1() {
-        macro_generated_fn.mock_raw(|| MockResult::Return(2));
+        unsafe {
+            macro_generated_fn.mock_raw(|| MockResult::Return(2));
+        }
 
         assert_eq!(1, macro_generated_fn());
     }
@@ -142,9 +171,11 @@ mod mock_injecting_works_for_nested_mods {
 
     #[test]
     fn when_mocked_then_returns_mocked_strs() {
-        mod_1::mod_1_fn.mock_raw(|| MockResult::Return("mod_1_fn mocked"));
-        mod_1::mod_2::mod_2_fn.mock_raw(|| MockResult::Return("mod_2_fn mocked"));
-        mod_1::mod_3::mod_3_fn.mock_raw(|| MockResult::Return("mod_3_fn mocked"));
+        unsafe {
+            mod_1::mod_1_fn.mock_raw(|| MockResult::Return("mod_1_fn mocked"));
+            mod_1::mod_2::mod_2_fn.mock_raw(|| MockResult::Return("mod_2_fn mocked"));
+            mod_1::mod_3::mod_3_fn.mock_raw(|| MockResult::Return("mod_3_fn mocked"));
+        }
 
         assert_eq!("mod_1_fn mocked", mod_1::mod_1_fn());
         assert_eq!("mod_2_fn mocked", mod_1::mod_2::mod_2_fn());
@@ -167,9 +198,11 @@ mod mock_injecting_works_for_nested_mods_in_separate_files {
 
     #[test]
     fn when_mocked_then_returns_mocked_strs() {
-        mod_file_1::mod_file_1_fn.mock_raw(|| MockResult::Return("mod_file_1_fn mocked"));
-        mod_file_1::mod_file_2::mod_file_2_fn.mock_raw(|| MockResult::Return("mod_file_2_fn mocked"));
-        mod_file_1::mod_file_3::mod_file_3_fn.mock_raw(|| MockResult::Return("mod_file_3_fn mocked"));
+        unsafe {
+            mod_file_1::mod_file_1_fn.mock_raw(|| MockResult::Return("mod_file_1_fn mocked"));
+            mod_file_1::mod_file_2::mod_file_2_fn.mock_raw(|| MockResult::Return("mod_file_2_fn mocked"));
+            mod_file_1::mod_file_3::mod_file_3_fn.mock_raw(|| MockResult::Return("mod_file_3_fn mocked"));
+        }
 
         assert_eq!("mod_file_1_fn mocked", mod_file_1::mod_file_1_fn());
         assert_eq!("mod_file_2_fn mocked", mod_file_1::mod_file_2::mod_file_2_fn());
@@ -188,11 +221,12 @@ mod annotating_function_twice_makes_it_injected_once {
         }
     }
 
-    //TODO TEST TRAIT VARIANT DEFAULT LEAKAGE
     #[test]
     // Actually it gets injects twice TODO fix
     fn ___fix_me___function_gets_injected_once() {
-        mock_annotated_mod::mock_annotated_fn.mock_raw(|x| MockResult::Continue((x + 1,)));
+        unsafe {
+            mock_annotated_mod::mock_annotated_fn.mock_raw(|x| MockResult::Continue((x + 1,)));
+        }
 
 //        assert_eq!(4, mock_annotated_mod::mock_annotated_fn(1));
     }
@@ -211,7 +245,9 @@ mod mocking_generic_over_a_type_with_lifetime_mocks_all_lifetime_variants {
 
     #[test]
     fn all_lifetime_variants_get_mocked() {
-        function::<&char>.mock_raw(|c| MockResult::Return(format!("mocked {}", c)));
+        unsafe {
+            function::<&char>.mock_raw(|c| MockResult::Return(format!("mocked {}", c)));
+        }
         let local_char = 'L';
 
         assert_eq!("mocked L", function(&local_char));
@@ -231,7 +267,9 @@ mod mocking_generic_over_a_reference_does_not_mock_opposite_mutability_variant {
 
     #[test]
     fn mocking_for_ref_does_not_mock_for_mut_ref() {
-        function::<&char>.mock_raw(|c| MockResult::Return(format!("mocked {}", c)));
+        unsafe {
+            function::<&char>.mock_raw(|c| MockResult::Return(format!("mocked {}", c)));
+        }
 
         assert_eq!("mocked R", function(&'R'));
         assert_eq!("not mocked M", function(&mut 'M'));
@@ -239,7 +277,9 @@ mod mocking_generic_over_a_reference_does_not_mock_opposite_mutability_variant {
 
     #[test]
     fn mocking_for_mut_ref_does_not_mock_for_ref() {
-        function::<&mut char>.mock_raw(|c| MockResult::Return(format!("mocked {}", c)));
+        unsafe {
+            function::<&mut char>.mock_raw(|c| MockResult::Return(format!("mocked {}", c)));
+        }
 
         assert_eq!("not mocked R", function(&'R'));
         assert_eq!("mocked M", function(&mut 'M'));

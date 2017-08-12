@@ -30,7 +30,9 @@ mod mocking_impls_of_traits_with_path {
 
     #[test]
     fn mocks_successfully() {
-        Struct::method.mock_raw(|| MockResult::Return("mocked"));
+        unsafe {
+            Struct::method.mock_raw(|| MockResult::Return("mocked"));
+        }
 
         assert_eq!("mocked", Struct::method());
     }
@@ -54,7 +56,9 @@ mod mocking_impls_of_traits_generic_over_generic_refs {
 
     #[test]
     fn mocks_successfully() {
-        <Struct as Trait<&u32>>::method.mock_raw(|| MockResult::Return("mocked"));
+        unsafe {
+            <Struct as Trait<&u32>>::method.mock_raw(|| MockResult::Return("mocked"));
+        }
 
         assert_eq!("mocked", <Struct as Trait<&u32>>::method());
     }

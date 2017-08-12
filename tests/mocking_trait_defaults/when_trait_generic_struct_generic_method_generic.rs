@@ -48,8 +48,10 @@ mod and_method_is_static {
 
     #[test]
     fn and_continue_mocked_then_runs_with_modified_args_for_mocked_type_only() {
-        <Struct<u8> as Trait<char>>::static_method::<f32>.mock_raw(|a, b, c|
-            MockResult::Continue((!a, b + 1., c.to_ascii_uppercase())));
+        unsafe {
+            <Struct<u8> as Trait<char>>::static_method::<f32>.mock_raw(|a, b, c|
+                MockResult::Continue((!a, b + 1., c.to_ascii_uppercase())));
+        }
 
         assert_eq!("false 3.5 A", Struct::<u8>::static_method(true, 2.5f32, 'a'));
         assert_eq!("true abc a", Struct::<u8>::static_method(true, "abc", 'a'));
@@ -59,8 +61,10 @@ mod and_method_is_static {
 
     #[test]
     fn and_return_mocked_then_returns_mocking_result_for_mocked_type_only() {
-        <Struct<u8> as Trait<char>>::static_method::<f32>.mock_raw(|a, b, c|
-            MockResult::Return(format!("mocked {} {} {}", a, b, c), ));
+        unsafe {
+            <Struct<u8> as Trait<char>>::static_method::<f32>.mock_raw(|a, b, c|
+                MockResult::Return(format!("mocked {} {} {}", a, b, c), ));
+        }
 
         assert_eq!("mocked true 2.5 a", Struct::<u8>::static_method(true, 2.5f32, 'a'));
         assert_eq!("true abc a", Struct::<u8>::static_method(true, "abc", 'a'));
@@ -84,9 +88,10 @@ mod and_method_is_ref_method {
     fn and_continue_mocked_then_runs_with_modified_args() {
         let struct_2 = Struct(2u8);
         let struct_3 = Struct(3u8);
-        let struct_3_ref = unsafe {as_static(&struct_3)};
-        <Struct<u8> as Trait<char>>::ref_method::<f32>.mock_raw(move |_, b, c, d|
-            MockResult::Continue((struct_3_ref, !b, c + 1., d.to_ascii_uppercase())));
+        unsafe {
+            <Struct<u8> as Trait<char>>::ref_method::<f32>.mock_raw(|_, b, c, d|
+                MockResult::Continue((&struct_3, !b, c + 1., d.to_ascii_uppercase())));
+        }
 
         assert_eq!("3 false 2.5 A", struct_2.ref_method(true, 1.5f32, 'a'));
         assert_eq!(2, struct_2.0);
@@ -99,8 +104,10 @@ mod and_method_is_ref_method {
     #[test]
     fn and_return_mocked_then_returns_mocking_result() {
         let struct_2 = Struct(2u8);
-        <Struct<u8> as Trait<char>>::ref_method::<f32>.mock_raw(|a, b, c, d|
-            MockResult::Return(format!("mocked {} {} {} {}", a.0, b, c, d),));
+        unsafe {
+            <Struct<u8> as Trait<char>>::ref_method::<f32>.mock_raw(|a, b, c, d|
+                MockResult::Return(format!("mocked {} {} {} {}", a.0, b, c, d), ));
+        }
 
         assert_eq!("mocked 2 true 1.5 a", struct_2.ref_method(true, 1.5f32, 'a'));
         assert_eq!(2, struct_2.0);
@@ -134,12 +141,13 @@ mod and_method_is_ref_mut_method {
     fn and_continue_mocked_then_runs_with_modified_args() {
         let mut struct_2 = Struct(2u8);
         let struct_3 = Struct(3u8);
-        let struct_3_ref = unsafe {as_static(&struct_3)};
         let mut struct_4 = Struct(4u8);
         let mut struct_str = Struct("abc");
         let mut struct_5 = Struct(5u8);
-        <Struct<u8> as Trait<char>>::ref_mut_method::<f32>.mock_raw(move |_, b, c, d|
-            MockResult::Continue((unsafe {as_mut_static(struct_3_ref)}, !b, c + 1., d.to_ascii_uppercase())));
+        unsafe {
+            <Struct<u8> as Trait<char>>::ref_mut_method::<f32>.mock_raw(|_, b, c, d|
+                MockResult::Continue((as_mut(&struct_3), !b, c + 1., d.to_ascii_uppercase())));
+        }
 
         assert_eq!("0 false 2.5 A", struct_2.ref_mut_method(true, 1.5f32, 'a'));
         assert_eq!(2, struct_2.0);
@@ -158,8 +166,10 @@ mod and_method_is_ref_mut_method {
         let mut struct_4 = Struct(4u8);
         let mut struct_str = Struct("abc");
         let mut struct_5 = Struct(5u8);
-        <Struct<u8> as Trait<char>>::ref_mut_method::<f32>.mock_raw(|a, b, c, d|
-            MockResult::Return(format!("mocked {} {} {} {}", a.0, b, c, d),));
+        unsafe {
+            <Struct<u8> as Trait<char>>::ref_mut_method::<f32>.mock_raw(|a, b, c, d|
+                MockResult::Return(format!("mocked {} {} {} {}", a.0, b, c, d), ));
+        }
 
         assert_eq!("mocked 2 true 1.5 a", struct_2.ref_mut_method(true, 1.5f32, 'a'));
         assert_eq!(2, struct_2.0);
@@ -185,8 +195,10 @@ mod and_method_is_val_method {
 
     #[test]
     fn and_continue_mocked_then_runs_with_modified_args() {
-        <Struct<u8> as Trait<char>>::val_method::<f32>.mock_raw(move |_, b, c, d|
-            MockResult::Continue((Struct(3u8), !b, c + 1., d.to_ascii_uppercase())));
+        unsafe {
+            <Struct<u8> as Trait<char>>::val_method::<f32>.mock_raw(move |_, b, c, d|
+                MockResult::Continue((Struct(3u8), !b, c + 1., d.to_ascii_uppercase())));
+        }
 
         assert_eq!("3 false 2.5 A", Struct(2u8).val_method(true, 1.5f32, 'a'));
         assert_eq!("2 true abc a", Struct(2u8).val_method(true, "abc", 'a'));
@@ -196,8 +208,10 @@ mod and_method_is_val_method {
 
     #[test]
     fn and_return_mocked_then_returns_mocking_result() {
-        <Struct<u8> as Trait<char>>::val_method::<f32>.mock_raw(|a, b, c, d|
-            MockResult::Return(format!("mocked {} {} {} {}", a.0, b, c, d),));
+        unsafe {
+            <Struct<u8> as Trait<char>>::val_method::<f32>.mock_raw(|a, b, c, d|
+                MockResult::Return(format!("mocked {} {} {} {}", a.0, b, c, d), ));
+        }
 
         assert_eq!("mocked 2 true 1.5 a", Struct(2u8).val_method(true, 1.5f32, 'a'));
         assert_eq!("2 true abc a", Struct(2u8).val_method(true, "abc", 'a'));

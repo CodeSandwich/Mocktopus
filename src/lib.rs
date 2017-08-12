@@ -10,7 +10,8 @@ use std::collections::HashMap;
 use std::mem::transmute;
 
 pub trait Mockable<T, O> {
-    fn mock_raw<M: Fn<T, Output=MockResult<T, O>> + 'static>(&self, mock: M);
+    unsafe fn mock_raw<M: Fn<T, Output=MockResult<T, O>>>(&self, mock: M);
+    fn mock_safe<M: Fn<T, Output=MockResult<T, O>> + 'static>(&self, mock: M);
     fn call_mock(&self, input: T) -> MockResult<T, O>;
     unsafe fn get_mock_id(&self) -> TypeId;
 }
@@ -25,15 +26,19 @@ thread_local!{
 }
 
 impl<T, O, F: FnOnce<T, Output=O>> Mockable<T, O> for F {
-    fn mock_raw<M: Fn<T, Output=MockResult<T, O>> + 'static>(&self, mock: M) {
+    unsafe fn mock_raw<M: Fn<T, Output=MockResult<T, O>>>(&self, mock: M) {
+        let id = self.get_mock_id();
+        MOCK_STORE.with(|mock_ref_cell| {
+            let fn_box: Box<Fn<T, Output=MockResult<T, O>>> = Box::new(mock);
+            let stored: Box<Fn<(), Output=()>> = transmute(fn_box);
+            let mock_map = &mut*mock_ref_cell.borrow_mut();
+            mock_map.insert(id, stored);
+        })
+    }
+
+    fn mock_safe<M: Fn<T, Output=MockResult<T, O>> + 'static>(&self, mock: M) {
         unsafe {
-            let id = self.get_mock_id();
-            MOCK_STORE.with(|mock_ref_cell| {
-                let fn_box: Box<Fn<T, Output=MockResult<T, O>>> = Box::new(mock);
-                let stored: Box<Fn<(), Output=()>> = transmute(fn_box);
-                let mock_map = &mut*mock_ref_cell.borrow_mut();
-                mock_map.insert(id, stored);
-            })
+            self.mock_raw(mock)
         }
     }
 
@@ -59,10 +64,6 @@ impl<T, O, F: FnOnce<T, Output=O>> Mockable<T, O> for F {
     }
 }
 
-pub unsafe fn as_static<T>(t_ref: &T) -> &'static T {
-    &*(t_ref as *const T)
-}
-
-pub unsafe fn as_mut_static<T>(t_ref: &T) -> &'static mut T {
+pub unsafe fn as_mut<'a, T>(t_ref: &'a T) -> &'a mut T {
     &mut *(t_ref as *const T as *mut T)
 }

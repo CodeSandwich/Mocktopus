@@ -46,7 +46,9 @@ mod and_method_is_static {
 
     #[test]
     fn and_continue_mocked_then_runs_with_modified_args_for_mocked_type_only() {
-        Struct::<u8>::static_method.mock_raw(|a| MockResult::Continue((!a,)));
+        unsafe {
+            Struct::<u8>::static_method.mock_raw(|a| MockResult::Continue((!a, )));
+        }
 
         assert_eq!("false", Struct::<u8>::static_method(true));
         assert_eq!("true", Struct::<&str>::static_method(true));
@@ -54,7 +56,9 @@ mod and_method_is_static {
 
     #[test]
     fn and_return_mocked_then_returns_mocking_result_for_mocked_type_only() {
-        Struct::<u8>::static_method.mock_raw(|a| MockResult::Return(format!("mocked {}", a), ));
+        unsafe {
+            Struct::<u8>::static_method.mock_raw(|a| MockResult::Return(format!("mocked {}", a), ));
+        }
 
         assert_eq!("mocked true", Struct::<u8>::static_method(true));
         assert_eq!("true", Struct::<&str>::static_method(true));
@@ -74,8 +78,9 @@ mod and_method_is_ref_method {
     fn and_continue_mocked_then_runs_with_modified_args() {
         let struct_2 = Struct(2u8);
         let struct_3 = Struct(3u8);
-        let struct_3_ref = unsafe {as_static(&struct_3)};
-        Struct::<u8>::ref_method.mock_raw(move |_, b| MockResult::Continue((struct_3_ref, !b)));
+        unsafe {
+            Struct::<u8>::ref_method.mock_raw(|_, b| MockResult::Continue((&struct_3, !b)));
+        }
 
         assert_eq!("3 false", struct_2.ref_method(true));
         assert_eq!(2, struct_2.0);
@@ -86,7 +91,9 @@ mod and_method_is_ref_method {
     #[test]
     fn and_return_mocked_then_returns_mocking_result() {
         let struct_2 = Struct(2u8);
-        Struct::<u8>::ref_method.mock_raw(|a, b| MockResult::Return(format!("mocked {} {}", a.0, b),));
+        unsafe {
+            Struct::<u8>::ref_method.mock_raw(|a, b| MockResult::Return(format!("mocked {} {}", a.0, b), ));
+        }
 
         assert_eq!("mocked 2 true", struct_2.ref_method(true));
         assert_eq!(2, struct_2.0);
@@ -112,10 +119,10 @@ mod and_method_is_ref_mut_method {
     fn and_continue_mocked_then_runs_with_modified_args() {
         let mut struct_2 = Struct(2u8);
         let struct_3 = Struct(3u8);
-        let struct_3_ref = unsafe {as_static(&struct_3)};
         let mut struct_str = Struct("str");
-        Struct::<u8>::ref_mut_method.mock_raw(move |_, b|
-            MockResult::Continue((unsafe {as_mut_static(struct_3_ref)}, !b)));
+        unsafe {
+            Struct::<u8>::ref_mut_method.mock_raw(|_, b| MockResult::Continue((as_mut(&struct_3), !b)));
+        }
 
         assert_eq!("0 false", struct_2.ref_mut_method(true));
         assert_eq!(2, struct_2.0);
@@ -128,7 +135,9 @@ mod and_method_is_ref_mut_method {
     fn and_return_mocked_then_returns_mocking_result() {
         let mut struct_2 = Struct(2u8);
         let mut struct_str = Struct("str");
-        Struct::<u8>::ref_mut_method.mock_raw(|a, b| MockResult::Return(format!("mocked {} {}", a.0, b),));
+        unsafe {
+            Struct::<u8>::ref_mut_method.mock_raw(|a, b| MockResult::Return(format!("mocked {} {}", a.0, b), ));
+        }
 
         assert_eq!("mocked 2 true", struct_2.ref_mut_method(true));
         assert_eq!(2, struct_2.0);
@@ -148,7 +157,9 @@ mod and_method_is_val_method {
 
     #[test]
     fn and_continue_mocked_then_runs_with_modified_args() {
-        Struct::<u8>::val_method.mock_raw(move |_, b| MockResult::Continue((Struct(3u8), !b)));
+        unsafe {
+            Struct::<u8>::val_method.mock_raw(move |_, b| MockResult::Continue((Struct(3u8), !b)));
+        }
 
         assert_eq!("3 false", Struct(2u8).val_method(true));
         assert_eq!("abc true", Struct("abc").val_method(true));
@@ -156,7 +167,9 @@ mod and_method_is_val_method {
 
     #[test]
     fn and_return_mocked_then_returns_mocking_result() {
-        Struct::<u8>::val_method.mock_raw(|a, b| MockResult::Return(format!("mocked {} {}", a.0, b),));
+        unsafe {
+            Struct::<u8>::val_method.mock_raw(|a, b| MockResult::Return(format!("mocked {} {}", a.0, b), ));
+        }
 
         assert_eq!("mocked 2 true", Struct(2u8).val_method(true));
         assert_eq!("abc true", Struct("abc").val_method(true));
