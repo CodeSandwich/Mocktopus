@@ -13,8 +13,10 @@ use proc_macro::TokenStream;
 use quote::{Tokens, ToTokens};
 use std::mem;
 use std::str::FromStr;
-use syn::{BindingMode, Block, Constness, FnArg, Ident, ImplItem, ImplItemKind, Item, ItemKind, MethodSig, Mutability,
-          Pat, Path, TraitItem, TraitItemKind};
+use syn::{Attribute, BindingMode, Block, Constness, FnArg, Ident, ImplItem, ImplItemKind, Item, ItemKind, MethodSig,
+          Mutability, Pat, Path, TraitItem, TraitItemKind};
+
+const INJECTOR_STOPPER_ATTRS: [&str; 2] = ["mockable", "non_mockable"];
 
 #[proc_macro_attribute]
 pub fn mockable(_: TokenStream, token_stream: TokenStream) -> TokenStream {
@@ -47,16 +49,14 @@ fn inject_item(item: &mut Item) {
 
 fn inject_mod(items_opt: Option<&mut Vec<Item>>) {
     if let Some(items) = items_opt {
-        for item in items {
-            if item.attrs.iter().all(|a| a.is_sugared_doc || a.name() != "mockable") {
-                inject_item(item)
-            }
+        for item in items.iter_mut().filter(|i| do_item_attrs_let_injector_in(&i.attrs)) {
+            inject_item(item)
         }
     }
 }
 
 fn inject_impl(trait_path: Option<&Path>, items: &mut Vec<ImplItem>) {
-    for item in items {
+    for item in items.iter_mut().filter(|i| do_item_attrs_let_injector_in(&i.attrs)) {
         if let ImplItemKind::Method(
             MethodSig {
                 unsafety: _,
@@ -74,7 +74,7 @@ fn inject_impl(trait_path: Option<&Path>, items: &mut Vec<ImplItem>) {
 }
 
 fn inject_trait_defaults(items: &mut Vec<TraitItem>) {
-    for item in items {
+    for item in items.iter_mut().filter(|i| do_item_attrs_let_injector_in(&i.attrs)) {
         if let TraitItemKind::Method(
             MethodSig {
                 unsafety: _,
@@ -118,4 +118,8 @@ fn unignore_fn_args(inputs: &mut Vec<FnArg>) {
         };
         inputs[i] = unignored;
     }
+}
+
+fn do_item_attrs_let_injector_in(attrs: &Vec<Attribute>) -> bool {
+    attrs.iter().all(|a| !INJECTOR_STOPPER_ATTRS.contains(&a.name()))
 }

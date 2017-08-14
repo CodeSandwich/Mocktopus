@@ -225,6 +225,27 @@ mod injector_injects_annotated_items {
     }
 }
 
+mod injector_does_not_inject_item_twice {
+    use super::*;
+
+    #[mockable]
+    mod mocked_mod {
+        #[mockable]
+        pub fn mocked_fn(x: u32) -> u32 {
+            x * 2
+        }
+    }
+
+    #[test]
+    fn double_annotated_function_gets_injected_once() {
+        unsafe {
+            mocked_mod::mocked_fn.mock_raw(|x| MockResult::Continue((x + 1,)));
+        }
+
+        assert_eq!(4, mocked_mod::mocked_fn(1));
+    }
+}
+
 mod injector_ignores_const_fns {
     use super::*;
 
@@ -297,26 +318,5 @@ mod injector_unignores_args {
         }
 
         assert_eq!(2, two_args_returns_first_ignores_second(1, 2));
-    }
-}
-
-mod injector_does_not_inject_item_twice {
-    use super::*;
-
-    #[mockable]
-    mod mocked_mod {
-        #[mockable]
-        pub fn mocked_fn(x: u32) -> u32 {
-            x * 2
-        }
-    }
-
-    #[test]
-    fn double_annotated_function_gets_injected_once() {
-        unsafe {
-            mocked_mod::mocked_fn.mock_raw(|x| MockResult::Continue((x + 1,)));
-        }
-
-        assert_eq!(4, mocked_mod::mocked_fn(1));
     }
 }
