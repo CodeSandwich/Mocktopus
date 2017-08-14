@@ -48,7 +48,9 @@ fn inject_item(item: &mut Item) {
 fn inject_mod(items_opt: Option<&mut Vec<Item>>) {
     if let Some(items) = items_opt {
         for item in items {
-            inject_item(item)
+            if item.attrs.iter().all(|a| a.is_sugared_doc || a.name() != "mockable") {
+                inject_item(item)
+            }
         }
     }
 }

@@ -300,24 +300,23 @@ mod injector_unignores_args {
     }
 }
 
-mod injector_does_not_process_item_twice {
+mod injector_does_not_inject_item_twice {
     use super::*;
 
     #[mockable]
-    mod mock_annotated_mod {
+    mod mocked_mod {
         #[mockable]
-        pub fn mock_annotated_fn(x: u32) -> u32 {
+        pub fn mocked_fn(x: u32) -> u32 {
             x * 2
         }
     }
 
     #[test]
-    // Actually it gets injects twice TODO fix
-    fn ___fix_me___function_gets_injected_once() {
+    fn double_annotated_function_gets_injected_once() {
         unsafe {
-            mock_annotated_mod::mock_annotated_fn.mock_raw(|x| MockResult::Continue((x + 1,)));
+            mocked_mod::mocked_fn.mock_raw(|x| MockResult::Continue((x + 1,)));
         }
 
-//        assert_eq!(4, mock_annotated_mod::mock_annotated_fn(1));
+        assert_eq!(4, mocked_mod::mocked_fn(1));
     }
 }
