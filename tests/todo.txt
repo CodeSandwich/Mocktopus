@@ -1,5 +1,6 @@
-rename #[mockable] to #[mockable]
-Test mocking all mockable items (mod, trait, impl and fn)
-Test double-mocking all mockable items
-add [non_mockable]
-Test non-mocking all mockable items + in-trait and in-impl fns
+DONE rename #[mockable] to #[mockable]
+DONE Test mocking all mockable items (mod, trait, impl and fn)
+TODO add double-mocking stopper
+TODO Test double-mocking all mockable items
+TODO add [non_mockable]
+TODO Test non-mocking all mockable items + in-trait and in-impl fns
