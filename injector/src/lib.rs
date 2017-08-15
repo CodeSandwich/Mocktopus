@@ -16,7 +16,7 @@ use std::str::FromStr;
 use syn::{Attribute, BindingMode, Block, Constness, FnArg, Ident, ImplItem, ImplItemKind, Item, ItemKind, MethodSig,
           Mutability, Pat, Path, TraitItem, TraitItemKind};
 
-const INJECTOR_STOPPER_ATTRS: [&str; 2] = ["mockable", "non_mockable"];
+const INJECTOR_STOPPER_ATTRS: [&str; 2] = ["mockable", "not_mockable"];
 
 #[proc_macro_attribute]
 pub fn mockable(_: TokenStream, token_stream: TokenStream) -> TokenStream {
@@ -31,6 +31,11 @@ pub fn mockable(_: TokenStream, token_stream: TokenStream) -> TokenStream {
     let out_string = tokens.as_str();
     let out_token_stream = TokenStream::from_str(out_string).unwrap();
     out_token_stream
+}
+
+#[proc_macro_attribute]
+pub fn not_mockable(_: TokenStream, token_stream: TokenStream) -> TokenStream {
+    token_stream
 }
 
 fn inject_item(item: &mut Item) {

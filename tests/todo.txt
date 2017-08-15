@@ -2,5 +2,5 @@ DONE rename #[mockable] to #[mockable]
 DONE Test mocking all mockable items (mod, trait, impl and fn)
 DONE add double-mocking stopper
 DONE Test double-mocking ALL mockable items
-DONE add [non_mockable]
-TODO Test non-mocking all mockable items + in-trait and in-impl fns
+DONE add [not_mockable]
+TODO Test not-mocking all mockable items + in-trait and in-impl fns

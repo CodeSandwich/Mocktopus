@@ -179,7 +179,7 @@ mod injector_injects_annotated_items {
         }
     }
 
-    mod injects_nested_mods_content {
+    mod injects_nested_mod_content {
         use super::*;
 
         #[mockable]
@@ -225,7 +225,7 @@ mod injector_injects_annotated_items {
     }
 }
 
-mod injector_does_not_inject_item_twice {
+mod injector_does_not_inject_items_twice {
     use super::*;
 
     mod injects_double_annotated_fn_once {
@@ -319,7 +319,7 @@ mod injector_does_not_inject_item_twice {
         }
     }
 
-    mod injects_double_annotated_mods_content_once {
+    mod injects_double_annotated_mod_content_once {
         use super::*;
 
         #[mockable]
@@ -344,6 +344,129 @@ mod injector_does_not_inject_item_twice {
             }
 
             assert_eq!(4, mocked_mod::mocked_mod::mocked_fn(1));
+        }
+    }
+}
+
+mod injector_does_not_inject_not_mockable_items {
+    use super::*;
+
+    mod does_not_injects_not_mockable_fn {
+        use super::*;
+
+        #[mockable]
+        mod mocked_mod {
+            #[not_mockable]
+            pub fn not_mocked_fn() -> &'static str {
+                "not mocked"
+            }
+        }
+
+        #[test]
+        fn when_not_mocked_then_runs_normally() {
+            assert_eq!("not mocked", mocked_mod::not_mocked_fn());
+        }
+
+        #[test]
+        fn when_mocked_then_runs_normally() {
+            unsafe {
+                mocked_mod::not_mocked_fn.mock_raw(|| MockResult::Return("mocked"));
+            }
+
+            assert_eq!("not mocked", mocked_mod::not_mocked_fn());
+        }
+    }
+
+    mod does_not_injects_not_mockable_impl_block {
+        use super::*;
+
+        struct MockedStruct;
+
+        #[mockable]
+        mod mocked_mod {
+            #[not_mockable]
+            impl MockedStruct {
+                pub fn not_mocked_fn() -> &'static str {
+                    "not mocked"
+                }
+            }
+        }
+
+        #[test]
+        fn when_not_mocked_then_runs_normally() {
+            assert_eq!("not mocked", MockedStruct::not_mocked_fn());
+        }
+
+        #[test]
+        fn when_mocked_then_runs_normally() {
+            unsafe {
+                MockedStruct::not_mocked_fn.mock_raw(|| MockResult::Return("mocked"))
+            }
+
+            assert_eq!("not mocked", MockedStruct::not_mocked_fn());
+        }
+    }
+
+    mod does_not_injects_not_mockable_trait {
+        use super::*;
+        use self::mocked_mod::MockedTrait;
+
+        #[mockable]
+        mod mocked_mod {
+            #[not_mockable]
+            pub trait MockedTrait {
+                fn not_mocked_fn() -> &'static str {
+                    "not mocked"
+                }
+            }
+        }
+
+        struct Struct;
+
+        impl MockedTrait for Struct {
+
+        }
+
+        #[test]
+        fn when_not_mocked_then_runs_normally() {
+            assert_eq!("not mocked", Struct::not_mocked_fn());
+        }
+
+        #[test]
+        fn when_mocked_then_runs_normally() {
+            unsafe {
+                Struct::not_mocked_fn.mock_raw(|| MockResult::Return("mocked"))
+            }
+
+            assert_eq!("not mocked", Struct::not_mocked_fn());
+        }
+    }
+
+    mod does_not_injects_not_mockable_mod_content {
+        use super::*;
+
+        #[mockable]
+        mod mocked_mod {
+            #[not_mockable]
+            pub mod mocked_mod {
+                pub fn not_mocked_fn() -> &'static str {
+                    "not mocked"
+                }
+            }
+        }
+
+        #[test]
+        fn when_not_mocked_then_runs_normally() {
+            assert_eq!("not mocked", mocked_mod::mocked_mod::not_mocked_fn());
+        }
+
+        #[test]
+        fn when_mocked_then_runs_normally() {
+            unsafe {
+                mocked_mod::mocked_mod::not_mocked_fn.mock_raw(|| MockResult::Return("mocked"))
+            }
+
+            assert_eq!("not mocked", mocked_mod::mocked_mod::not_mocked_fn());
         }
     }
 }
