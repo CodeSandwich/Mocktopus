@@ -160,7 +160,7 @@ mod injector_injects_annotated_items {
 
         struct Struct;
 
-        impl module::Trait for Struct {
+        impl Trait for Struct {
 
         }
 
@@ -228,21 +228,123 @@ mod injector_injects_annotated_items {
 mod injector_does_not_inject_item_twice {
     use super::*;
 
-    #[mockable]
-    mod mocked_mod {
+    mod injects_double_annotated_fn_once {
+        use super::*;
+
         #[mockable]
-        pub fn mocked_fn(x: u32) -> u32 {
-            x * 2
+        mod mocked_mod {
+            #[mockable]
+            pub fn mocked_fn(x: u32) -> u32 {
+                x * 2
+            }
+        }
+
+        #[test]
+        fn when_not_mocked_then_runs_normally() {
+            assert_eq!(2, mocked_mod::mocked_fn(1));
+        }
+
+        #[test]
+        fn when_mocked_then_runs_mock_once() {
+            unsafe {
+                mocked_mod::mocked_fn.mock_raw(|x| MockResult::Continue((x + 1,)));
+            }
+
+            assert_eq!(4, mocked_mod::mocked_fn(1));
         }
     }
 
-    #[test]
-    fn double_annotated_function_gets_injected_once() {
-        unsafe {
-            mocked_mod::mocked_fn.mock_raw(|x| MockResult::Continue((x + 1,)));
+    mod injects_double_annotated_impl_block_once {
+        use super::*;
+
+        struct MockedStruct;
+
+        #[mockable]
+        mod mocked_mod {
+            #[mockable]
+            impl MockedStruct {
+                pub fn mocked_fn(x: u32) -> u32 {
+                    x * 2
+                }
+            }
         }
 
-        assert_eq!(4, mocked_mod::mocked_fn(1));
+        #[test]
+        fn when_not_mocked_then_runs_normally() {
+            assert_eq!(2, MockedStruct::mocked_fn(1));
+        }
+
+        #[test]
+        fn when_mocked_then_runs_mock_once() {
+            unsafe {
+                MockedStruct::mocked_fn.mock_raw(|x| MockResult::Continue((x + 1,)))
+            }
+
+            assert_eq!(4, MockedStruct::mocked_fn(1));
+        }
+    }
+
+    mod injects_double_annotated_traits_once {
+        use super::*;
+        use self::mocked_mod::MockedTrait;
+
+        #[mockable]
+        mod mocked_mod {
+            #[mockable]
+            pub trait MockedTrait {
+                fn mocked_fn(x: u32) -> u32 {
+                    x * 2
+                }
+            }
+        }
+
+        struct Struct;
+
+        impl MockedTrait for Struct {
+
+        }
+
+        #[test]
+        fn when_not_mocked_then_runs_normally() {
+            assert_eq!(2, Struct::mocked_fn(1));
+        }
+
+        #[test]
+        fn when_mocked_then_runs_mock_once() {
+            unsafe {
+                Struct::mocked_fn.mock_raw(|x| MockResult::Continue((x + 1,)))
+            }
+
+            assert_eq!(4, Struct::mocked_fn(1));
+        }
+    }
+
+    mod injects_double_annotated_mods_content_once {
+        use super::*;
+
+        #[mockable]
+        mod mocked_mod {
+            #[mockable]
+            pub mod mocked_mod {
+                pub fn mocked_fn(x: u32) -> u32 {
+                    x * 2
+                }
+            }
+        }
+
+        #[test]
+        fn when_not_mocked_then_runs_normally() {
+            assert_eq!(2, mocked_mod::mocked_mod::mocked_fn(1));
+        }
+
+        #[test]
+        fn when_mocked_then_runs_mock() {
+            unsafe {
+                mocked_mod::mocked_mod::mocked_fn.mock_raw(|x| MockResult::Continue((x + 1,)))
+            }
+
+            assert_eq!(4, mocked_mod::mocked_mod::mocked_fn(1));
+        }
     }
 }
 
