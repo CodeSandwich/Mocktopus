@@ -2,7 +2,8 @@
 
 extern crate mocktopus;
 
-use mocktopus::*;
+use mocktopus::macros::*;
+use mocktopus::mocking::*;
 
 mod injector_injects_annotated_fns {
     use super::*;

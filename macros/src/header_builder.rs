@@ -52,12 +52,12 @@ impl<'a> HeaderBuilder<'a> {
         let header_str = format!(
             r#"{{
                 let ({non_self_args}) = {block_unsafety} {{
-                    match mocktopus::Mockable::call_mock(&{full_fn_name}, ({self_arg}{non_self_args})) {{
-                        mocktopus::MockResult::Continue({arg_replacement_tuple}) => {{
+                    match mocktopus::mocking::Mockable::call_mock(&{full_fn_name}, ({self_arg}{non_self_args})) {{
+                        mocktopus::mocking::MockResult::Continue({arg_replacement_tuple}) => {{
                             {self_arg_replacement}
                             {non_self_arg_return}
                         }},
-                        mocktopus::MockResult::Return(result) => return result,
+                        mocktopus::mocking::MockResult::Return(result) => return result,
                     }}
                 }};
             }}"#,

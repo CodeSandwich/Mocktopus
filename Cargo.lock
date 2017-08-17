@@ -1,5 +1,5 @@
 [root]
-name = "mocktopus_injector"
+name = "mocktopus_macros"
 version = "0.1.0"
 dependencies = [
  "quote 0.3.15 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -10,7 +10,7 @@ dependencies = [
 name = "mocktopus"
 version = "0.1.0"
 dependencies = [
- "mocktopus_injector 0.1.0",
+ "mocktopus_macros 0.1.0",
 ]
 
 [[package]]

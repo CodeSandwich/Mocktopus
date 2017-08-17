@@ -2,15 +2,17 @@
 
 extern crate mocktopus;
 
-use mocktopus::*;
-#[allow(unused_imports)] //Linter error
-use std::ascii::AsciiExt;
-use std::fmt::Display;
-
 mod mocking_fns;
 mod mocking_methods;
 mod mocking_trait_defaults;
 mod mocking_traits;
+
+use mocktopus::macros::*;
+use mocktopus::mocking::*;
+use mocktopus::utils::*;
+#[allow(unused_imports)] //Linter error
+use std::ascii::AsciiExt;
+use std::fmt::Display;
 
 mod mock_safe {
     use super::*;

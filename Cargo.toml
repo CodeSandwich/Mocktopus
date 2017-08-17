@@ -5,8 +5,8 @@ authors = ["CodeSandwich <igor.zuk@protonmail.com>"]
 
 
 [dependencies]
-mocktopus_injector = { path = "injector" }
+mocktopus_macros = { path = "macros" }
 
 [workspace]
-members = ["injector"]
+members = ["macros"]
 
