@@ -2,9 +2,10 @@
 
 extern crate mocktopus_macros;
 
-pub mod utils;
+/// For use in tested code: tools making items mockable
 pub mod macros {
     pub use mocktopus_macros::*;
 }
+/// For use in testing code: mocking tools
 pub mod mocking;
 

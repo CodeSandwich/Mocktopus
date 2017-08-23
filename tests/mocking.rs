@@ -9,7 +9,7 @@ mod mocking_traits;
 
 use mocktopus::macros::*;
 use mocktopus::mocking::*;
-use mocktopus::utils::*;
+use mocktopus::mocking::utils::*;
 #[allow(unused_imports)] //Linter error
 use std::ascii::AsciiExt;
 use std::fmt::Display;

@@ -1,3 +1,6 @@
+/// Helper tools for tests using mocking
+pub mod utils;
+
 use std::any::{Any, TypeId};
 use std::cell::RefCell;
 use std::collections::HashMap;
