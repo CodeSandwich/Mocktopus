@@ -20,7 +20,7 @@ use std::str::FromStr;
 /// # Valid to annotate
 /// - modules (makes all its valid to annotate items annotated)
 ///
-/// ```
+/// ```ignore
 /// #[mockable]
 /// mod module {
 ///     fn mockable() { ... }
@@ -28,13 +28,13 @@ use std::str::FromStr;
 /// ```
 /// - standalone functions
 ///
-/// ```
+/// ```ignore
 /// #[mockable]
 /// fn mockable() { ... }
 /// ```
 /// - struct impl blocks (makes all functions inside mockable)
 ///
-/// ```
+/// ```ignore
 /// #[mockable]
 /// impl Structure {
 ///     fn mockable() { ... }
@@ -42,7 +42,7 @@ use std::str::FromStr;
 /// ```
 /// - trait impl blocks (makes all functions inside mockable)
 ///
-/// ```
+/// ```ignore
 /// #[mockable]
 /// impl Trait for Structure {
 ///     fn mockable() { ... }
@@ -50,7 +50,7 @@ use std::str::FromStr;
 /// ```
 /// - traits (makes all default functions inside mockable)
 ///
-/// ```
+/// ```ignore
 /// #[mockable]
 /// trait Trait {
 ///     fn mockable() { ... }
@@ -61,7 +61,7 @@ use std::str::FromStr;
 ///
 /// - single functions in struct impls
 ///
-/// ```
+/// ```ignore
 /// impl Structure {
 ///     #[mockable] //INVALID USAGE!
 ///     fn mockable() { ... }
@@ -69,7 +69,7 @@ use std::str::FromStr;
 /// ```
 /// - single functions in trait impls
 ///
-/// ```
+/// ```ignore
 /// impl Trait for Structure {
 ///     #[mockable] //INVALID USAGE!
 ///     fn mockable() { ... }
@@ -77,7 +77,7 @@ use std::str::FromStr;
 /// ```
 /// - single default functions in traits
 ///
-/// ```
+/// ```ignore
 /// trait Trait {
 ///     #[mockable] //INVALID USAGE!
 ///     fn mockable() { ... }
@@ -109,7 +109,7 @@ pub fn mockable(_: TokenStream, token_stream: TokenStream) -> TokenStream {
 /// # Valid to annotate
 /// - modules
 ///
-/// ```
+/// ```ignore
 /// #[mockable]
 /// mod module {
 ///     #[not_mockable]
@@ -120,7 +120,7 @@ pub fn mockable(_: TokenStream, token_stream: TokenStream) -> TokenStream {
 /// ```
 /// - standalone functions
 ///
-/// ```
+/// ```ignore
 /// #[mockable]
 /// mod module {
 ///     #[not_mockable]
@@ -129,7 +129,7 @@ pub fn mockable(_: TokenStream, token_stream: TokenStream) -> TokenStream {
 /// ```
 /// - struct impl blocks
 ///
-/// ```
+/// ```ignore
 /// #[mockable]
 /// mod module {
 ///     #[not_mockable]
@@ -140,7 +140,7 @@ pub fn mockable(_: TokenStream, token_stream: TokenStream) -> TokenStream {
 /// ```
 /// - single functions in struct impls
 ///
-/// ```
+/// ```ignore
 /// #[mockable]
 /// impl Struct {
 ///     #[not_mockable]
@@ -149,7 +149,7 @@ pub fn mockable(_: TokenStream, token_stream: TokenStream) -> TokenStream {
 /// ```
 /// - trait impl blocks
 ///
-/// ```
+/// ```ignore
 /// #[mockable]
 /// mod module {
 ///     #[not_mockable]
@@ -160,7 +160,7 @@ pub fn mockable(_: TokenStream, token_stream: TokenStream) -> TokenStream {
 /// ```
 /// - single functions in trait impls
 ///
-/// ```
+/// ```ignore
 /// #[mockable]
 /// impl Trait for Struct {
 ///     #[not_mockable]
@@ -169,7 +169,7 @@ pub fn mockable(_: TokenStream, token_stream: TokenStream) -> TokenStream {
 /// ```
 /// - traits
 ///
-/// ```
+/// ```ignore
 /// #[mockable]
 /// mod module {
 ///     #[not_mockable]
@@ -180,7 +180,7 @@ pub fn mockable(_: TokenStream, token_stream: TokenStream) -> TokenStream {
 /// ```
 /// - single default functions in traits
 ///
-/// ```
+/// ```ignore
 /// #[mockable]
 /// trait Trait {
 ///     #[not_mockable]
