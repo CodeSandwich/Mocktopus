@@ -120,3 +120,42 @@ mod mocking_generic_over_a_reference_does_not_mock_opposite_mutability_variant {
         assert_eq!("mocked M", function(&mut 'M'));
     }
 }
+
+mod mocking_trait_default_for_struct_does_not_mock_same_default_for_another_struct {
+    use super::*;
+
+    #[mockable]
+    trait Trait {
+        fn function() -> &'static str {
+            "not mocked"
+        }
+    }
+
+    struct Struct1;
+
+    impl Trait for Struct1 {
+
+    }
+
+    struct Struct2;
+
+    impl Trait for Struct2 {
+
+    }
+
+    #[test]
+    fn when_not_mocked_then_both_run_normally() {
+        assert_eq!("not mocked", Struct1::function());
+        assert_eq!("not mocked", Struct2::function());
+    }
+
+    #[test]
+    fn when_mocked_for_one_then_runs_mock_for_it_and_runs_normally_for_other() {
+        unsafe {
+            Struct1::function.mock_raw(|| MockResult::Return("mocked"))
+        }
+
+        assert_eq!("mocked", Struct1::function());
+        assert_eq!("not mocked", Struct2::function());
+    }
+}

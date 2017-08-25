@@ -2,11 +2,11 @@
 ///
 /// Allows creating multiple mutable references to a single item breaking Rust's safety policy.
 /// # Safety
-/// Use with extreme caution, may cause all sorts of mutability related undefined behaviors.
+/// Use with extreme caution, may cause all sorts of mutability related undefined behaviors!
 ///
-/// One safe use case is when mocking function, which gets called only once during whole test execution, see example:
+/// One safe use case is when mocking function, which gets called only once during whole test execution, for example:
 ///
-/// ```ignore
+/// ```
 /// #[mockable]
 /// fn fetch_string() -> &mut String {
 ///     //fetch String from the system
@@ -21,7 +21,7 @@
 ///     let string = String::new();
 ///     unsafe {
 ///         // MockResult::Return(&mut string) would fail
-///         fetch_string.mock_raw(|_| MockResult::Return(as_mut(&string)));
+///         fetch_string.mock_raw(|| MockResult::Return(as_mut(&string)));
 ///     }
 ///
 ///     modify_string();
@@ -29,6 +29,6 @@
 ///     assert_eq!("modified", string);
 /// }
 /// ```
-pub unsafe fn as_mut<'a, T>(t_ref: &'a T) -> &'a mut T {
+pub unsafe fn as_mut<T>(t_ref: &T) -> &mut T {
     &mut *(t_ref as *const T as *mut T)
 }
