@@ -9,28 +9,77 @@ use std::mem::transmute;
 ///
 /// Note: methods have any effect only if called on functions [annotated as mockable](../../mocktopus_macros).
 pub trait Mockable<T, O> {
-    /// Core function for setting up mocking
+    /// Core function for setting up mocks
     ///
-    /// The function gets a closure, which is then called whenever the mocked function is called. Depending on
-    /// variant of returned [MockResult](./enum.MockResult.html) the function continues to run or returns immediately.
+    /// The passed closure is called whenever the mocked function is called. Depending on variant of returned
+    /// [MockResult](./enum.MockResult.html) the mocked function continues to run or returns immediately.
+    /// In case of continuation the function arguments can be modified or replaced.
     /// # Safety
     /// It is up to the user to make sure, that the closure is valid long enough to serve all calls to mocked function.
-    /// The closure is saved in a static storage, so usage of any non-static values will make it invalid at some point.
+    /// The closure is saved in a static storage, so if it uses any non-static values or references,
+    /// it will silently become invalid at some point.
+    ///
+    /// ```
+    /// #[mockable]
+    /// impl Context {
+    /// fn get_string(&self) -> &String {
+    ///     // retrieve string
+    /// }
+    ///
+    /// fn append_string(context: &Context, string: &mut String) {
+    ///     string.push_str(context.get_string())
+    /// }
+    ///
+    /// #[test]
+    /// fn append_string_test() {
+    ///     let fetched = "mocked".to_string();
+    ///     unsafe {
+    ///         Context::get_string.mock_raw(|_| MockResult::Return(&fetched));
+    ///     }
+    ///     let mut modified = String::new();
+    ///
+    ///     append_string(&Context::default(), &mut modified);
+    ///
+    ///     assert_eq!("mocked", modified);
+    /// }
+    /// ```
     unsafe fn mock_raw<M: Fn<T, Output=MockResult<T, O>>>(&self, mock: M);
-    /// A safe variant of mock_raw for static closures
+    /// A safe variant of [mock_raw](#tymethod.mock_raw) for static closures
     ///
     /// The safety is guaranteed by forcing passed closure to be static.
-    /// This eliminates the problem of using non-static values in it, which may not live long enough.
+    /// This eliminates the problem of using non-static values, which may not live long enough.
+    ///
+    /// ```
+    /// #[mockable]
+    /// fn get_string(is_a: bool) -> &'static str {
+    ///     match is_a {
+    ///         true => "A",
+    ///         false => "B",
+    ///     }
+    /// }
+    ///
+    /// fn append_string(string: &mut String) {
+    ///     string.push_str(get_string(false))
+    /// }
+    ///
+    /// #[test]
+    /// fn append_string_test() {
+    ///     get_string.mock_safe(|_| MockResult::Continue((true,)));
+    ///     let mut modified = String::new();
+    ///
+    ///     append_string(&mut modified);
+    ///
+    ///     assert_eq!("A", modified);
+    /// }
+    /// ```
     fn mock_safe<M: Fn<T, Output=MockResult<T, O>> + 'static>(&self, mock: M);
     /// **For internal use only**
     ///
-    /// Called before every execution of a mockable function.
-    /// Checks if mock is set for the function and if it is, calls it.
+    /// Called before every execution of a mockable function. Checks if mock is set and if it is, calls it.
     fn call_mock(&self, input: T) -> MockResult<T, O>;
     /// **For internal use only**
     ///
-    /// Returns a unique ID of the function, which is used for setting and getting its mock.
-    /// Each function, trait or struct impl, trait default and every generic variant has different ID.
+    /// Returns a unique ID of the function, which is used to set and get its mock.
     unsafe fn get_mock_id(&self) -> TypeId;
 }
 

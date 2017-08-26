@@ -8,23 +8,24 @@
 ///
 /// ```
 /// #[mockable]
-/// fn fetch_string() -> &mut String {
-///     //fetch String from the system
+/// impl Context {
+/// fn get_string(&mut self) -> &mut String {
+///     // retrieve string
 /// }
 ///
-/// fn modify_string() {
-///     fetch_string().push_str("modified")
+/// fn modify_string(context: &mut Context) {
+///     context.get_string().push_str("modified")
 /// }
 ///
 /// #[test]
-/// fn modify_string_test() {
+/// fn append_string_test() {
 ///     let string = String::new();
 ///     unsafe {
 ///         // MockResult::Return(&mut string) would fail
-///         fetch_string.mock_raw(|| MockResult::Return(as_mut(&string)));
+///         Context::get_string.mock_raw(|| MockResult::Return(as_mut(&string)));
 ///     }
 ///
-///     modify_string();
+///     modify_string(&mut Context::default());
 ///
 ///     assert_eq!("modified", string);
 /// }
