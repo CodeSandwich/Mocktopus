@@ -4,24 +4,26 @@
 //!
 //! ```
 //! #[mockable]
-//! fn world() -> &'static str {
-//!     "world"
-//! }
+//! mod hello_world {
 //!
-//! fn hello_world() -> String {
-//!     format!("Hello {}!", world())
+//!     pub fn world() -> &'static str {
+//!         "world"
+//!     }
+//!
+//!     pub fn hello_world() -> String {
+//!         format!("Hello {}!", world())
+//!     }
 //! }
 //!
 //! #[test]
 //! fn mock_test() {
-//!     world.mock_safe(|| MockResult::Return("mocking"));
+//!     hello_world::world.mock_safe(|| MockResult::Return("mocking"));
 //!
-//!     assert_eq!("Hello mocking!", hello_world());
+//!     assert_eq!("Hello mocking!", hello_world::hello_world());
 //! }
 //! ```
-//! # About this document
+//! # Introduction
 //! This is a user guide showing Rust project set up for testing with mocks.
-//! For in-depth developer guide visit [GitHub page](https://github.com/CodeSandwich/Mocktopus).
 //!
 //! It is highly recommended to **use mocks ONLY for test runs and NEVER in release builds!**
 //! Mocktopus is not designed for high performance and will slow down code execution.
@@ -48,7 +50,7 @@
 //! This import MUST NOT be aliased, mocking framework depends on Mocktopus root being visible as `mocktopus`.
 //! # Making functions mockable
 //! To make functions mockable they must be annotated with provided procedural macros.
-//! See [documentation](../mocktopus_macros) for all their possibilities and rules.
+//! See [documentation](https://docs.rs/mocktopus_macros) for all their possibilities and rules.
 //!
 //! To use these macros import them into namespace:
 //!

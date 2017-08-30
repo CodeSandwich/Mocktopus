@@ -7,12 +7,12 @@ use std::mem::transmute;
 ///
 /// The trait is implemented for all functions, so its methods can be called on any function.
 ///
-/// Note: methods have any effect only if called on functions [annotated as mockable](../../mocktopus_macros).
+/// Note: methods have any effect only if called on functions [annotated as mockable](https://docs.rs/mocktopus_macros).
 pub trait Mockable<T, O> {
     /// Core function for setting up mocks
     ///
     /// The passed closure is called whenever the mocked function is called. Depending on variant of returned
-    /// [MockResult](./enum.MockResult.html) the mocked function continues to run or returns immediately.
+    /// [MockResult](enum.MockResult.html) the mocked function continues to run or returns immediately.
     /// In case of continuation the function arguments can be modified or replaced.
     /// # Safety
     /// It is up to the user to make sure, that the closure is valid long enough to serve all calls to mocked function.
@@ -83,7 +83,7 @@ pub trait Mockable<T, O> {
     unsafe fn get_mock_id(&self) -> TypeId;
 }
 
-/// Controls mocked function behavior when returned from [mock closure](./trait.Mockable.html)
+/// Controls mocked function behavior when returned from [mock closure](trait.Mockable.html)
 pub enum MockResult<T, O> {
     /// Function runs normally as if it was called with given arguments.
     /// The arguments are passed inside enum variant as a tuple.

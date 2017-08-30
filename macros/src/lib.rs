@@ -1,4 +1,4 @@
-//! Macros making items mockable
+//! [Mocktopus](https://docs.rs/mocktopus) procedural macros making items mockable
 
 #![feature(proc_macro)]
 
