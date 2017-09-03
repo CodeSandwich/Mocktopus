@@ -1,11 +1,10 @@
 #![feature(fn_traits, get_type_id, proc_macro, unboxed_closures)]
 
-//! Mocking framework for Rust
+//! Mocking framework for Rust (currently only nightly)
 //!
 //! ```
 //! #[mockable]
 //! mod hello_world {
-//!
 //!     pub fn world() -> &'static str {
 //!         "world"
 //!     }
@@ -97,24 +96,61 @@
 //! Mocking with `mock_safe` is simplest, but the `Mockable` trait has more,
 //! see [documantation](mocking/trait.Mockable.html).
 //!
-//! # Mocking closure
-//! `mock_safe` has 1 argument: a closure, which takes same input as mocked function and returns a `MockResult`.
+//! ## Mocking range
+//! Every mock works only in thread, in which it was set.
+//! All Rust test runs are executed in independent threads, so mocks do not leak between them:
+//!
+//! ```
+//! #[cfg_attr(test, mockable)]
+//! fn common_fn() -> u32 {
+//!     0
+//! }
+//!
+//! #[test]
+//! fn common_fn_test_1() {
+//!     assert_eq!(0, common_fn());
+//!
+//!     common_fn.mock_safe(|| MockResult::Return(1));
+//!
+//!     assert_eq!(1, common_fn());
+//! }
+//!
+//! #[test]
+//! fn common_fn_test_2() {
+//!     assert_eq!(0, common_fn());
+//!
+//!     common_fn.mock_safe(|| MockResult::Return(2));
+//!
+//!     assert_eq!(2, common_fn());
+//! }
+//! ```
+//!
+//! ## Mock closure
+//! `mock_safe` has single argument: a closure, which takes same input as mocked function and returns a `MockResult`.
 //! Whenever the mocked function is called, its inputs are passed to the closure:
 //!
 //! ```
-//! my_function_1.mock_safe(|x| {
-//!     assert_eq!(2, x);
-//!     MockResult::Return(())
+//! #[cfg_attr(test, mockable)]
+//! fn my_function_1(_: u32) {
+//!     return
 //! }
 //!
-//! my_function_1(2); // Passes
-//! my_function_1(3); // Panics
+//! #[test]
+//! fn my_function_1_test() {
+//!     my_function_1.mock_safe(|x| {
+//!         assert_eq!(2, x);
+//!         MockResult::Return(())
+//!     });
+//!
+//!     my_function_1(2); // Passes
+//!     my_function_1(3); // Panics
+//! }
 //! ```
 //! If the closure returns `MockResult::Return`, the mocked function does not run.
 //! It immediately returns with a value, which is passed inside `MockResult::Return`:
 //!
 //! ```
-//! #[mockable]
+//! #[cfg_attr(test, mockable)]
 //! fn my_function_2() -> u32 {
 //!     unreachable!()
 //! }
@@ -130,7 +166,7 @@
 //! The new arguments are returned from closure in tuple inside `MockResult::Continue`:
 //!
 //! ```
-//! #[mockable]
+//! #[cfg_attr(test, mockable)]
 //! fn my_function_3(x: u32, y: u32) -> u32 {
 //!     x + y
 //! }

@@ -14,10 +14,15 @@ pub trait Mockable<T, O> {
     /// The passed closure is called whenever the mocked function is called. Depending on variant of returned
     /// [MockResult](enum.MockResult.html) the mocked function continues to run or returns immediately.
     /// In case of continuation the function arguments can be modified or replaced.
+    ///
+    /// The mock closure is saved in a
+    /// [thread local static storage](https://doc.rust-lang.org/std/macro.thread_local.html),
+    /// so it has effect only in thread, where it was set.
+    /// Each Rust test is executed in separate thread, so mocks do not leak between them.
     /// # Safety
     /// It is up to the user to make sure, that the closure is valid long enough to serve all calls to mocked function.
-    /// The closure is saved in a static storage, so if it uses any non-static values or references,
-    /// it will silently become invalid at some point.
+    /// If the mock closure uses any non-static values or references, it will silently become invalid at some point of
+    /// host thread lifetime.
     ///
     /// ```
     /// #[mockable]

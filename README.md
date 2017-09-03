@@ -2,12 +2,11 @@
 [![Docs.rs](https://docs.rs/mocktopus/badge.svg)](https://docs.rs/mocktopus)
 [![Build Status](https://travis-ci.org/CodeSandwich/Mocktopus.svg?branch=master)](https://travis-ci.org/CodeSandwich/Mocktopus)
 
-Mocking framework for Rust. See [documentation](https://docs.rs/mocktopus) for more information.
+Mocking framework for Rust (currently only nightly). See [documentation](https://docs.rs/mocktopus) for more.
 
 ```rust
 #[mockable]
 mod hello_world {
-
     pub fn world() -> &'static str {
         "world"
     }

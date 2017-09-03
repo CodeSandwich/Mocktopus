@@ -1,9 +1,8 @@
-Mocking framework for Rust. See documentation for more information.
+Mocking framework for Rust (currently only nightly). See documentation for more.
 
 ```
 #[mockable]
 mod hello_world {
-
     pub fn world() -> &'static str {
         "world"
     }
