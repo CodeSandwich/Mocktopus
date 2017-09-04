@@ -8,26 +8,19 @@
 ///
 /// ```
 /// #[mockable]
-/// impl Context {
-/// fn get_string(&mut self) -> &mut String {
-///     // retrieve string
-/// }
-///
-/// fn modify_string(context: &mut Context) {
-///     context.get_string().push_str("modified")
+/// fn get_string(context: &mut Context) -> &mut String {
+///     context.get_mut_string()
 /// }
 ///
 /// #[test]
-/// fn append_string_test() {
-///     let string = String::new();
+/// fn get_string_test() {
+///     let mocked = "mocked".to_string();
 ///     unsafe {
 ///         // MockResult::Return(&mut string) would fail
-///         Context::get_string.mock_raw(|| MockResult::Return(as_mut(&string)));
+///         get_string.mock_raw(|_| MockResult::Return(as_mut(&mocked)));
 ///     }
 ///
-///     modify_string(&mut Context::default());
-///
-///     assert_eq!("modified", string);
+///     assert_eq!("mocked", get_string(&mut Context::default()));
 /// }
 /// ```
 pub unsafe fn as_mut<T>(t_ref: &T) -> &mut T {
