@@ -2,6 +2,10 @@
 [![Docs.rs](https://docs.rs/mocktopus/badge.svg)](https://docs.rs/mocktopus)
 [![Build Status](https://travis-ci.org/CodeSandwich/Mocktopus.svg?branch=master)](https://travis-ci.org/CodeSandwich/Mocktopus)
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/CodeSandwich/mocktopus/master/logo.png" alt="logo"/>
+</p>
+
 Mocking framework for Rust (currently only nightly). See [documentation](https://docs.rs/mocktopus) for more.
 
 ```rust

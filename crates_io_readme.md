@@ -1,3 +1,5 @@
+![logo](https://raw.githubusercontent.com/CodeSandwich/mocktopus/master/logo.png)
+
 Mocking framework for Rust (currently only nightly). See documentation for more.
 
 ```

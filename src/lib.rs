@@ -178,6 +178,8 @@
 //!     assert_eq!(3, my_function_3(1, 1));
 //! }
 //! ```
+#![doc(html_logo_url = "https://raw.githubusercontent.com/CodeSandwich/mocktopus/master/logo.png",
+    html_favicon_url = "https://raw.githubusercontent.com/CodeSandwich/mocktopus/master/logo.png")]
 
 extern crate mocktopus_macros;
 
