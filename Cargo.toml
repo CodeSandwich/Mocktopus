@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["CodeSandwich <igor.zuk@protonmail.com>"]
 description = "Mocking framework for Rust"
 readme = "crates_io_readme.md"
+repository = "https://github.com/CodeSandwich/Mocktopus"
 license = "MIT"
 
 [badges]
@@ -13,7 +14,7 @@ travis-ci = { repository = "CodeSandwich/Mocktopus" }
 doctest = false
 
 [dependencies]
-mocktopus_macros = { path = "macros" }
+mocktopus_macros = "0.1.0"
 
 [workspace]
 members = ["macros"]
