@@ -178,6 +178,62 @@
 //!     assert_eq!(3, my_function_3(1, 1));
 //! }
 //! ```
+//!
+//! ##Mocking generics
+//! When mocking generic functions, all its generics must be defined and only this variant will be affected:
+//!
+//! ```
+//! #[cfg_attr(test, mockable)]
+//! fn generic_fn<T: Display>(t: T) -> String {
+//!     t.to_string()
+//! }
+//!
+//! #[test]
+//! fn generic_fn_test() {
+//!     generic_fn::<u32>.mock_safe(|_| MockResult::Return("mocked".to_string()));
+//!
+//!     assert_eq!("1", generic_fn(1i32));
+//!     assert_eq!("mocked", generic_fn(1u32));
+//! }
+//! ```
+//! The only exception are lifetimes, they are ignored:
+//!
+//! ```
+//! #[cfg_attr(test, mockable)]
+//! fn lifetime_generic_fn<'a>(string: &'a String) -> &'a str {
+//!     string.as_ref()
+//! }
+//!
+//! #[test]
+//! fn lifetime_generic_fn_test() {
+//!     lifetime_generic_fn.mock_safe(|_| MockResult::Return("mocked"));
+//!
+//!     assert_eq!("mocked", lifetime_generic_fn(&"not mocked".to_string()));
+//! }
+//! ```
+//! Same rules apply to methods and structures:
+//!
+//! ```
+//! struct GenericStruct<'a, T: Display + 'a>(&'a T);
+//!
+//! #[cfg_attr(test, mockable)]
+//! impl<'a, T: Display + 'a> GenericStruct<'a, T> {
+//!     fn to_string(&self) -> String {
+//!         self.0.to_string()
+//!     }
+//! }
+//!
+//! static VALUE: u32 = 1;
+//!
+//! #[test]
+//! fn lifetime_generic_fn_test() {
+//!     GenericStruct::<u32>::to_string.mock_safe(|_| MockResult::Return("mocked".to_string()));
+//!
+//!     assert_eq!("mocked", GenericStruct(&VALUE).to_string());
+//!     assert_eq!("mocked", GenericStruct(&2u32).to_string());
+//!     assert_eq!("2", GenericStruct(&2i32).to_string());
+//! }
+//! ```
 #![doc(html_logo_url = "https://raw.githubusercontent.com/CodeSandwich/mocktopus/master/logo.png",
     html_favicon_url = "https://raw.githubusercontent.com/CodeSandwich/mocktopus/master/logo.png")]
 
