@@ -1,4 +1,6 @@
 //! [Mocktopus](https://docs.rs/mocktopus) procedural macros making items mockable
+#![doc(html_logo_url = "https://raw.githubusercontent.com/CodeSandwich/mocktopus/master/logo.png",
+    html_favicon_url = "https://raw.githubusercontent.com/CodeSandwich/mocktopus/master/logo.png")]
 
 #![feature(proc_macro)]
 
