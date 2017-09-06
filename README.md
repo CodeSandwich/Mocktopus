@@ -1,4 +1,4 @@
-[![Crates.io](https://img.shields.io/crates/d/rustc-serialize.svg)](https://crates.io/crates/mocktopus)
+[![Crates.io](https://img.shields.io/crates/d/mocktopus.svg)](https://crates.io/crates/mocktopus)
 [![Docs.rs](https://docs.rs/mocktopus/badge.svg)](https://docs.rs/mocktopus)
 [![Build Status](https://travis-ci.org/CodeSandwich/Mocktopus.svg?branch=master)](https://travis-ci.org/CodeSandwich/Mocktopus)
 
