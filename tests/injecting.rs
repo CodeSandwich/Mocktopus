@@ -1,9 +1,10 @@
 #![feature(const_fn, proc_macro)]
 
-extern crate mocktopus;
+// Test if injecting works even if mocktopus is aliased
+extern crate mocktopus as mocktopus_aliased;
 
-use mocktopus::macros::*;
-use mocktopus::mocking::*;
+use mocktopus_aliased::macros::*;
+use mocktopus_aliased::mocking::*;
 
 mod injector_injects_annotated_fns {
     use super::*;
