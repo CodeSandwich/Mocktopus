@@ -1,10 +1,11 @@
 use display_delegate::DisplayDelegate;
 use lifetime_remover::remove_lifetimes_from_path;
 use std::fmt::{Error, Formatter};
-use syn::{self, ExprKind, FnArg, Ident, Mutability, Pat, Path, Stmt};
+use syn::{self, ExprKind, FnArg, Ident, /*Mutability,*/ Pat, Path, Stmt};
 use quote::{Tokens, ToTokens};
 
-const ARG_REPLACEMENT_TUPLE_NAME: &str = "replacement";
+const ARGS_REPLACEMENT_TUPLE_NAME: &str  = "__mocktopus_args_replacement_tuple__";
+const MOCKTOPUS_EXTERN_CRATE_NAME: &str = "__mocktopus_extern_crate_inside_header__";
 
 macro_rules! error_msg {
     ($msg:expr) => { concat!("Mocktopus internal error: ", $msg) }
@@ -15,8 +16,7 @@ pub struct HeaderBuilder<'a> {
     is_method: bool,
     trait_path: Option<&'a Path>,
     fn_ident: Option<&'a Ident>,
-    self_arg: Option<&'a FnArg>,
-    non_self_args: Option<&'a [FnArg]>,
+    fn_args_names: Option<Vec<&'a str>>,
 }
 
 impl<'a> HeaderBuilder<'a> {
@@ -36,38 +36,31 @@ impl<'a> HeaderBuilder<'a> {
     }
 
     pub fn set_input_args(mut self, inputs: &'a Vec<FnArg>) -> Self {
-        match inputs.first() {
-            self_arg @ Some(&FnArg::SelfRef(_, _)) | self_arg @ Some(&FnArg::SelfValue(_)) => {
-                self.self_arg = self_arg;
-                self.non_self_args = Some(&inputs[1..]);
-            },
-            _ => {
-                self.non_self_args = Some(inputs.as_slice());
-            },
-        };
+        let fn_args_names = inputs.iter()
+            .map(|a| match *a {
+                FnArg::SelfRef(_, _) | FnArg::SelfValue(_) => "self",
+                FnArg::Captured(Pat::Ident(_, ref ident, None), _) => ident.as_ref(),
+                _ => panic!(error_msg!("invalid fn arg type")),
+            })
+            .collect();
+        self.fn_args_names = Some(fn_args_names);
         self
     }
 
     pub fn build(&self) -> Vec<Stmt> {
         let header_str = format!(
             r#"{{
-                let ({non_self_args}) = {block_unsafety} {{
-                    match mocktopus::mocking::Mockable::call_mock(&{full_fn_name}, ({self_arg}{non_self_args})) {{
-                        mocktopus::mocking::MockResult::Continue({arg_replacement_tuple}) => {{
-                            {self_arg_replacement}
-                            {non_self_arg_return}
-                        }},
-                        mocktopus::mocking::MockResult::Return(result) => return result,
-                    }}
-                }};
+                extern crate mocktopus as {mocktopus_crate};
+                match {mocktopus_crate}::mocking::Mockable::call_mock(&{full_fn_name}, {args_tuple}) {{
+                    {mocktopus_crate}::mocking::MockResult::Continue({args_replacement_tuple}) => {args_replacement},
+                    {mocktopus_crate}::mocking::MockResult::Return(result) => return result,
+                }}
             }}"#,
-            block_unsafety          = DisplayDelegate::new(|f| self.write_block_unsafety(f)),
+            mocktopus_crate         = MOCKTOPUS_EXTERN_CRATE_NAME,
             full_fn_name            = DisplayDelegate::new(|f| self.write_full_fn_name(f)),
-            self_arg                = DisplayDelegate::new(|f| self.write_self_arg(f)),
-            non_self_args           = DisplayDelegate::new(|f| self.write_non_self_args(f)),
-            arg_replacement_tuple   = ARG_REPLACEMENT_TUPLE_NAME,
-            self_arg_replacement    = DisplayDelegate::new(|f| self.write_self_replacement(f)),
-            non_self_arg_return     = DisplayDelegate::new(|f| self.write_non_self_return(f)));
+            args_tuple              = DisplayDelegate::new(|f| self.write_args_tuple(f)),
+            args_replacement_tuple  = ARGS_REPLACEMENT_TUPLE_NAME,
+            args_replacement        = DisplayDelegate::new(|f| self.write_args_replacement(f)));
         let header_expr = syn::parse_expr(&header_str).expect(error_msg!("generated header unparsable"));
         match header_expr.node {
             ExprKind::Block(_, block) => block.stmts,
@@ -75,81 +68,48 @@ impl<'a> HeaderBuilder<'a> {
         }
     }
 
-    fn write_block_unsafety(&self, formatter: &mut Formatter) -> Result<(), Error> {
-        match self.self_arg {
-            Some(_) => write!(formatter, "unsafe"),
-            None => Ok(()),
-        }
-    }
-
-    fn write_full_fn_name(&self, formatter: &mut Formatter) -> Result<(), Error> {
+    fn write_full_fn_name(&self, f: &mut Formatter) -> Result<(), Error> {
         match (self.is_method, self.trait_path) {
-            (true, Some(path)) => write!(formatter, "<Self as {}>::",
+            (true, Some(path)) => write!(f, "<Self as {}>::",
                                          DisplayDelegate::new(|f| Self::write_trait_casting_name(f, path)))?,
-            (true, None) => write!(formatter, "Self::")?,
+            (true, None) => write!(f, "Self::")?,
             (false, Some(_)) => panic!(error_msg!("trait path set on non-method")),
             (false, None) => (),
         };
-        write!(formatter, "{}", self.fn_ident.expect(error_msg!("fn name not set")).as_ref())
+        write!(f, "{}", self.fn_ident.expect(error_msg!("fn name not set")).as_ref())
     }
 
-    fn write_trait_casting_name(formatter: &mut Formatter, path: &Path) -> Result<(), Error> {
+    fn write_trait_casting_name(f: &mut Formatter, path: &Path) -> Result<(), Error> {
         let mut path_without_lifetimes = path.clone();
         remove_lifetimes_from_path(&mut path_without_lifetimes);
         let mut tokens = Tokens::new();
         path_without_lifetimes.to_tokens(&mut tokens);
-        write!(formatter, "{}", tokens.as_str())
+        write!(f, "{}", tokens.as_str())
     }
 
-    fn write_self_arg(&self, formatter: &mut Formatter) -> Result<(), Error> {
-        match self.self_arg {
-            Some(_) => write!(formatter, "std::mem::replace(&mut {}, std::mem::uninitialized()), ",
-                              DisplayDelegate::new(|f| self.write_mut_self_acqusition(f))),
-            None => Ok(()),
+    fn write_args_tuple(&self, f: &mut Formatter) -> Result<(), Error> {
+        let fn_args_names = self.fn_args_names.as_ref().expect(error_msg!("fn_arg_names not set"));
+        if fn_args_names.is_empty() {
+            return write!(f, "()");
         }
-    }
-
-    fn write_non_self_args(&self, formatter: &mut Formatter) -> Result<(), Error> {
-        for arg in self.non_self_args.expect(error_msg!("passed inputs not set")) {
-            match *arg {
-                FnArg::Captured(Pat::Ident(_, ref ident, None), _) => write!(formatter, "{}, ", ident.as_ref())?,
-                _ => panic!(error_msg!("invalid function input '{:?}'"), arg),
-            };
-        };
-        Ok(())
-    }
-
-    fn write_self_replacement(&self, formatter: &mut Formatter) -> Result<(), Error> {
-        match self.self_arg {
-            Some(_) => write!(formatter, "{} = {}.0;", DisplayDelegate::new(|f| self.write_mut_self_acqusition(f)),
-                              ARG_REPLACEMENT_TUPLE_NAME),
-            None => Ok(()),
+        write!(f, "unsafe {{ (")?;
+        for fn_arg_name in fn_args_names {
+            write!(f, "::std::mem::replace({}::mocking_utils::as_mut(&{}), ::std::mem::uninitialized()), ",
+                   MOCKTOPUS_EXTERN_CRATE_NAME, fn_arg_name)?;
         }
+        write!(f, ") }}")
     }
 
-    fn write_non_self_return(&self, formatter: &mut Formatter) -> Result<(), Error> {
-        match self.self_arg {
-            Some(_) => {
-                write!(formatter, "(")?;
-                for i in 0..self.non_self_args.expect(error_msg!("returned inputs not set")).len() {
-                    write!(formatter, "{}.{}, ", ARG_REPLACEMENT_TUPLE_NAME, i + 1)?;
-                }
-                write!(formatter, ")")
-            },
-            None => write!(formatter, "{}", ARG_REPLACEMENT_TUPLE_NAME)
+    fn write_args_replacement(&self, f: &mut Formatter) -> Result<(), Error> {
+        let fn_args_names = self.fn_args_names.as_ref().expect(error_msg!("fn_arg_names not set"));
+        if fn_args_names.is_empty() {
+            return write!(f, "()");
         }
-    }
-
-    fn write_mut_self_acqusition(&self, formatter: &mut Formatter) -> Result<(), Error> {
-        write!(formatter, "*(&self as *const {0} as *mut {0})", DisplayDelegate::new(|f| self.write_self_type(f)))
-    }
-
-    fn write_self_type(&self, formatter: &mut Formatter) -> Result<(), Error> {
-        match self.self_arg {
-            Some(&FnArg::SelfRef(_, Mutability::Immutable)) => write!(formatter, "&Self"),
-            Some(&FnArg::SelfRef(_, Mutability::Mutable)) => write!(formatter, "&mut Self"),
-            Some(&FnArg::SelfValue(_)) => write!(formatter, "Self"),
-            _ => panic!(error_msg!("invalid self arg: '{:?}'"), self.self_arg),
+        write!(f, "unsafe {{")?;
+        for (fn_arg_index, fn_arg_name) in fn_args_names.iter().enumerate() {
+            write!(f, "::std::mem::replace({}::mocking_utils::as_mut(&{}), {}.{});",
+                   MOCKTOPUS_EXTERN_CRATE_NAME, fn_arg_name, ARGS_REPLACEMENT_TUPLE_NAME, fn_arg_index)?;
         }
+        write!(f, "}}")
     }
 }

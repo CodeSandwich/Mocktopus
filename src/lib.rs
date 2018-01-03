@@ -46,7 +46,6 @@
 //! #[cfg(test)]
 //! extern crate mocktopus;
 //! ```
-//! This import MUST NOT be aliased, mocking framework depends on Mocktopus root being visible as `mocktopus`.
 //! # Making functions mockable
 //! To make functions mockable they must be annotated with provided procedural macros.
 //! See [documentation](https://docs.rs/mocktopus_macros) for all their possibilities and rules.

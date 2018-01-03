@@ -4,6 +4,9 @@ use syn::{Attribute, BindingMode, Block, Constness, FnArg, Ident, ImplItem, Impl
           Mutability, Pat, Path, TraitItem, TraitItemKind};
 
 pub fn inject_item(item: &mut Item) {
+    if !do_item_attrs_let_injector_in(&item.attrs) {
+        return
+    }
     match item.node {
         ItemKind::Mod(ref mut items_opt) =>
             inject_mod(items_opt.as_mut()),
@@ -18,11 +21,9 @@ pub fn inject_item(item: &mut Item) {
 }
 
 fn inject_mod(items_opt: Option<&mut Vec<Item>>) {
-    if let Some(items) = items_opt {
-        for item in items.iter_mut().filter(|i| do_item_attrs_let_injector_in(&i.attrs)) {
-            inject_item(item)
-        }
-    }
+    items_opt.into_iter()
+        .flat_map(|v| v)
+        .for_each(inject_item);
 }
 
 fn inject_impl(trait_path: Option<&Path>, items: &mut Vec<ImplItem>) {
@@ -81,7 +82,7 @@ fn unignore_fn_args(inputs: &mut Vec<FnArg>) {
                     Pat::Ident(
                         BindingMode::ByValue(
                             Mutability::Immutable),
-                        Ident::from(format!("__mock_unignored_argument_{}__", i)),
+                        Ident::from(format!("__mocktopus_unignored_argument_{}__", i)),
                         None),
                     ty.clone()),
             _ => continue,
