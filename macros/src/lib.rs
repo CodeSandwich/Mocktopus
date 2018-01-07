@@ -14,8 +14,7 @@ mod header_builder;
 mod lifetime_remover;
 
 use proc_macro::TokenStream;
-use quote::{Tokens, ToTokens};
-use std::str::FromStr;
+use quote::ToTokens;
 
 /// Procedural macro, makes items and their sub-items mockable
 ///
@@ -94,17 +93,9 @@ use std::str::FromStr;
 /// - any other items
 #[proc_macro_attribute]
 pub fn mockable(_: TokenStream, token_stream: TokenStream) -> TokenStream {
-    let in_string = token_stream.to_string();
-    let mut parsed = match syn::parse_item(&in_string) {
-        Ok(parsed) => parsed,
-        Err(_) => return token_stream,
-    };
-    item_injector::inject_item(&mut parsed);
-    let mut tokens = Tokens::new();
-    parsed.to_tokens(&mut tokens);
-    let out_string = tokens.as_str();
-    let out_token_stream = TokenStream::from_str(out_string).unwrap();
-    out_token_stream
+    let mut item: syn::Item = syn::parse(token_stream).unwrap();
+    item_injector::inject_item(&mut item);
+    item.into_tokens().into()
 }
 
 /// Procedural macro, guards items from being made mockable by enclosing item.

@@ -1,7 +1,9 @@
 use display_delegate::DisplayDelegate;
-use lifetime_remover::remove_lifetimes_from_path;
+//use lifetime_remover::remove_lifetimes_from_path;
 use std::fmt::{Error, Formatter};
-use syn::{self, ExprKind, FnArg, Ident, /*Mutability,*/ Pat, Path, Stmt};
+use syn::{self, ArgCaptured, FnArg, Ident, Pat, PatIdent, Path, Stmt};
+use syn::punctuated::Punctuated;
+use syn::token::{Comma};
 use quote::{Tokens, ToTokens};
 
 const ARGS_REPLACEMENT_TUPLE_NAME: &str  = "__mocktopus_args_replacement_tuple__";
@@ -13,33 +15,44 @@ macro_rules! error_msg {
 
 #[derive(Clone, Default)]
 pub struct HeaderBuilder<'a> {
-    is_method: bool,
-    trait_path: Option<&'a Path>,
-    fn_ident: Option<&'a Ident>,
+//    is_method: bool,
+//    trait_path: Option<&'a Path>,
+    fn_ident: Option<&'a str>,
     fn_args_names: Option<Vec<&'a str>>,
 }
 
 impl<'a> HeaderBuilder<'a> {
-    pub fn set_is_method(mut self) -> Self {
-        self.is_method = true;
-        self
-    }
-
-    pub fn set_trait_path(mut self, trait_path: Option<&'a Path>) -> Self {
-        self.trait_path = trait_path;
-        self
-    }
+//    pub fn set_is_method(mut self) -> Self {
+//        self.is_method = true;
+//        self
+//    }
+//
+//    pub fn set_trait_path(mut self, trait_path: Option<&'a Path>) -> Self {
+//        self.trait_path = trait_path;
+//        self
+//    }
 
     pub fn set_fn_name(mut self, fn_ident: &'a Ident) -> Self {
-        self.fn_ident = Some(fn_ident);
+        self.fn_ident = Some(fn_ident.as_ref());
         self
     }
 
-    pub fn set_input_args(mut self, inputs: &'a Vec<FnArg>) -> Self {
-        let fn_args_names = inputs.iter()
+    pub fn set_input_args(mut self, input_args: &'a Punctuated<FnArg, Comma>) -> Self {
+        let fn_args_names = input_args.iter()
             .map(|a| match *a {
-                FnArg::SelfRef(_, _) | FnArg::SelfValue(_) => "self",
-                FnArg::Captured(Pat::Ident(_, ref ident, None), _) => ident.as_ref(),
+                FnArg::SelfRef(_) | FnArg::SelfValue(_) => "self",
+                FnArg::Captured(
+                    ArgCaptured {
+                        pat: Pat::Ident(
+                            PatIdent {
+                                ref ident,
+                                subpat: None,
+                                ..
+                            }
+                        ),
+                        ..
+                    }
+                ) => ident.as_ref(),
                 _ => panic!(error_msg!("invalid fn arg type")),
             })
             .collect();
@@ -47,7 +60,7 @@ impl<'a> HeaderBuilder<'a> {
         self
     }
 
-    pub fn build(&self) -> Vec<Stmt> {
+    pub fn build(&self) -> Stmt {
         let header_str = format!(
 r#"{{
 extern crate mocktopus as {mocktopus_crate};
@@ -67,31 +80,31 @@ match ::std::panic::catch_unwind(::std::panic::AssertUnwindSafe (
             args_replacement_tuple  = ARGS_REPLACEMENT_TUPLE_NAME,
             args_replacement        = DisplayDelegate::new(|f| self.write_args_replacement(f)),
             args_forget             = DisplayDelegate::new(|f| self.write_args_forget(f)));
-        let header_expr = syn::parse_expr(&header_str).expect(error_msg!("generated header unparsable"));
-        match header_expr.node {
-            ExprKind::Block(_, block) => block.stmts,
-            _ => panic!(error_msg!("generated header is not a block")),
-        }
+        /*let header_stmt: Stmt = */syn::parse_str(&header_str).expect(error_msg!("generated header unparsable"))
+//        match header_expr.node {
+//            ExprKind::Block(_, block) => block.stmts,
+//            _ => panic!(error_msg!("generated header is not a block")),
+//        }
     }
 
     fn write_full_fn_name(&self, f: &mut Formatter) -> Result<(), Error> {
-        match (self.is_method, self.trait_path) {
-            (true, Some(path)) => write!(f, "<Self as {}>::",
-                                         DisplayDelegate::new(|f| Self::write_trait_casting_name(f, path)))?,
-            (true, None) => write!(f, "Self::")?,
-            (false, Some(_)) => panic!(error_msg!("trait path set on non-method")),
-            (false, None) => (),
-        };
-        write!(f, "{}", self.fn_ident.expect(error_msg!("fn name not set")).as_ref())
+//        match (self.is_method, self.trait_path) {
+//            (true, Some(path)) => write!(f, "<Self as {}>::",
+//                                         DisplayDelegate::new(|f| Self::write_trait_casting_name(f, path)))?,
+//            (true, None) => write!(f, "Self::")?,
+//            (false, Some(_)) => panic!(error_msg!("trait path set on non-method")),
+//            (false, None) => (),
+//        };
+        write!(f, "{}", self.fn_ident.expect(error_msg!("fn name not set")))
     }
 
-    fn write_trait_casting_name(f: &mut Formatter, path: &Path) -> Result<(), Error> {
-        let mut path_without_lifetimes = path.clone();
-        remove_lifetimes_from_path(&mut path_without_lifetimes);
-        let mut tokens = Tokens::new();
-        path_without_lifetimes.to_tokens(&mut tokens);
-        write!(f, "{}", tokens.as_str())
-    }
+//    fn write_trait_casting_name(f: &mut Formatter, path: &Path) -> Result<(), Error> {
+//        let mut path_without_lifetimes = path.clone();
+//        remove_lifetimes_from_path(&mut path_without_lifetimes);
+//        let mut tokens = Tokens::new();
+//        path_without_lifetimes.to_tokens(&mut tokens);
+//        write!(f, "{}", tokens.as_str())
+//    }
 
     fn write_args_tuple(&self, f: &mut Formatter) -> Result<(), Error> {
         let fn_args_names = self.fn_args_names.as_ref().expect(error_msg!("fn_arg_names not set"));
