@@ -49,18 +49,24 @@ impl<'a> HeaderBuilder<'a> {
 
     pub fn build(&self) -> Vec<Stmt> {
         let header_str = format!(
-            r#"{{
-                extern crate mocktopus as {mocktopus_crate};
-                match {mocktopus_crate}::mocking::Mockable::call_mock(&{full_fn_name}, {args_tuple}) {{
-                    {mocktopus_crate}::mocking::MockResult::Continue({args_replacement_tuple}) => {args_replacement},
-                    {mocktopus_crate}::mocking::MockResult::Return(result) => return result,
-                }}
-            }}"#,
+r#"{{
+extern crate mocktopus as {mocktopus_crate};
+match ::std::panic::catch_unwind(::std::panic::AssertUnwindSafe (
+        || {mocktopus_crate}::mocking::Mockable::call_mock(&{full_fn_name}, {args_tuple}))) {{
+    Ok({mocktopus_crate}::mocking::MockResult::Continue({args_replacement_tuple})) => {args_replacement},
+    Ok({mocktopus_crate}::mocking::MockResult::Return(result)) => return result,
+    Err(unwind) => {{
+        {args_forget}
+        ::std::panic::resume_unwind(unwind);
+    }}
+}}
+}}"#,
             mocktopus_crate         = MOCKTOPUS_EXTERN_CRATE_NAME,
             full_fn_name            = DisplayDelegate::new(|f| self.write_full_fn_name(f)),
             args_tuple              = DisplayDelegate::new(|f| self.write_args_tuple(f)),
             args_replacement_tuple  = ARGS_REPLACEMENT_TUPLE_NAME,
-            args_replacement        = DisplayDelegate::new(|f| self.write_args_replacement(f)));
+            args_replacement        = DisplayDelegate::new(|f| self.write_args_replacement(f)),
+            args_forget             = DisplayDelegate::new(|f| self.write_args_forget(f)));
         let header_expr = syn::parse_expr(&header_str).expect(error_msg!("generated header unparsable"));
         match header_expr.node {
             ExprKind::Block(_, block) => block.stmts,
@@ -103,13 +109,21 @@ impl<'a> HeaderBuilder<'a> {
     fn write_args_replacement(&self, f: &mut Formatter) -> Result<(), Error> {
         let fn_args_names = self.fn_args_names.as_ref().expect(error_msg!("fn_arg_names not set"));
         if fn_args_names.is_empty() {
-            return write!(f, "()");
+            return writeln!(f, "()");
         }
-        write!(f, "unsafe {{")?;
+        writeln!(f, "unsafe {{")?;
         for (fn_arg_index, fn_arg_name) in fn_args_names.iter().enumerate() {
-            write!(f, "::std::mem::replace({}::mocking_utils::as_mut(&{}), {}.{});",
+            writeln!(f, "::std::mem::replace({}::mocking_utils::as_mut(&{}), {}.{});",
                    MOCKTOPUS_EXTERN_CRATE_NAME, fn_arg_name, ARGS_REPLACEMENT_TUPLE_NAME, fn_arg_index)?;
         }
-        write!(f, "}}")
+        writeln!(f, "}}")
+    }
+
+    fn write_args_forget(&self, f: &mut Formatter) -> Result<(), Error> {
+        let fn_args_names = self.fn_args_names.as_ref().expect(error_msg!("fn_arg_names not set"));
+        for fn_arg_name in fn_args_names {
+            writeln!(f, "::std::mem::forget({});", fn_arg_name)?;
+        }
+        Ok(())
     }
 }

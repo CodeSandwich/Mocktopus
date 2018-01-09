@@ -67,6 +67,23 @@ mod mocks_do_not_leak_between_tests {
     generate_tests!(t80, t81, t82, t83, t84, t85, t86, t87, t88, t89, t90, t91, t92, t93, t94, t95, t96, t97, t98, t99);
 }
 
+mod panicking_inside_mock_is_safe {
+    use super::*;
+
+    #[mockable]
+    fn function(_has_drop: String) {
+
+    }
+
+    #[test]
+    #[should_panic]
+    fn uninitialised_string_is_not_dropped() {
+        function.mock_safe(|_| panic!("inside mock"));
+
+        function("initialised".to_string());
+    }
+}
+
 mod mocking_generic_over_a_type_with_lifetime_mocks_all_lifetime_variants {
     use super::*;
     use std::fmt::Display;
