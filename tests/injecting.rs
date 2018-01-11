@@ -635,25 +635,25 @@ mod injector_does_not_inject_macro_generated_fns {
     }
 }
 
-//mod injector_unignores_args {
-//    use super::*;
-//
-//    #[mockable]
-//    pub fn two_args_returns_first_ignores_second(x: u32, _: u32) -> u32 {
-//        x
-//    }
-//
-//    #[test]
-//    fn when_not_mocked_then_returns_first_arg() {
-//        assert_eq!(1, two_args_returns_first_ignores_second(1, 2));
-//    }
-//
-//    #[test]
-//    fn when_mocked_then_returns_second_arg() {
-//        unsafe {
-//            two_args_returns_first_ignores_second.mock_raw(|x, y| MockResult::Continue((y, x)));
-//        }
-//
-//        assert_eq!(2, two_args_returns_first_ignores_second(1, 2));
-//    }
-//}
+mod injector_unignores_args {
+    use super::*;
+
+    #[mockable]
+    pub fn two_args_returns_first_ignores_second(x: u32, _: u32) -> u32 {
+        x
+    }
+
+    #[test]
+    fn when_not_mocked_then_returns_first_arg() {
+        assert_eq!(1, two_args_returns_first_ignores_second(1, 2));
+    }
+
+    #[test]
+    fn when_mocked_then_returns_second_arg() {
+        unsafe {
+            two_args_returns_first_ignores_second.mock_raw(|x, y| MockResult::Continue((y, x)));
+        }
+
+        assert_eq!(2, two_args_returns_first_ignores_second(1, 2));
+    }
+}

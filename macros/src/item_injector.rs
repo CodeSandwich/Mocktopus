@@ -1,6 +1,5 @@
 use header_builder::HeaderBuilder;
-use std::mem;
-use syn::{Attribute, Block, FnArg, Ident, Item, ItemFn, ItemImpl, ItemMod, ItemTrait};
+use syn::{ArgCaptured, Attribute, Block, FnArg, Ident, Item, ItemFn, ItemImpl, ItemMod, ItemTrait, Pat, PatIdent};
 use syn::punctuated::Punctuated;
 use syn::token::{Comma, Const};
 
@@ -86,24 +85,25 @@ fn inject_any_fn(builder: HeaderBuilder, attrs: &Vec<Attribute>, constness: &Opt
 }
 
 fn unignore_fn_args(inputs: &mut Punctuated<FnArg, Comma>) {
-//    inputs.iter_mut()
-//        .enumerate()
-//        .for_each(|(i, fn_arg)| )
-//
-//    for i in 0..inputs.len() {
-//        let unignored = match inputs[i] {
-//            FnArg::Captured(Pat::Wild, ref ty) =>
-//                FnArg::Captured(
-//                    Pat::Ident(
-//                        BindingMode::ByValue(
-//                            Mutability::Immutable),
-//                        Ident::from(format!("__mocktopus_unignored_argument_{}__", i)),
-//                        None),
-//                    ty.clone()),
-//            _ => continue,
-//        };
-//        inputs[i] = unignored;
-//    }
+    for (i, fn_arg) in inputs.iter_mut().enumerate() {
+        match *fn_arg {
+            FnArg::Captured(
+                ArgCaptured {
+                    pat: ref mut pat @ Pat::Wild(_),
+                    ..
+                }
+            ) => *pat =
+                Pat::Ident(
+                    PatIdent {
+                        by_ref: None,
+                        mutability: None,
+                        ident: Ident::from(format!("__mocktopus_unignored_argument_{}__", i)),
+                        subpat: None,
+                    }
+                ),
+            _ => ()
+        }
+    }
 }
 
 const INJECTOR_STOPPER_ATTRS: [&str; 2] = ["mockable", "not_mockable"];

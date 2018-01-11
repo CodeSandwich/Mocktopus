@@ -1,10 +1,9 @@
 use display_delegate::DisplayDelegate;
 //use lifetime_remover::remove_lifetimes_from_path;
 use std::fmt::{Error, Formatter};
-use syn::{self, ArgCaptured, FnArg, Ident, Pat, PatIdent, Path, Stmt};
+use syn::{self, ArgCaptured, FnArg, Ident, Pat, PatIdent, Stmt};
 use syn::punctuated::Punctuated;
 use syn::token::{Comma};
-use quote::{Tokens, ToTokens};
 
 const ARGS_REPLACEMENT_TUPLE_NAME: &str  = "__mocktopus_args_replacement_tuple__";
 const MOCKTOPUS_EXTERN_CRATE_NAME: &str = "__mocktopus_extern_crate_inside_header__";
