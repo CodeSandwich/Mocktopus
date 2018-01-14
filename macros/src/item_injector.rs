@@ -1,5 +1,5 @@
 use header_builder::FnHeaderBuilder;
-use syn::{ArgCaptured, Attribute, Block, FnArg, FnDecl, Ident, Item, ItemFn, ItemImpl, ItemMod, ItemTrait,
+use syn::{ArgCaptured, Attribute, Block, FnArg, FnDecl, Ident, ImplItem, Item, ItemFn, ItemImpl, ItemMod, ItemTrait,
           MethodSig, Pat, PatIdent, TraitItem, TraitItemMethod};
 use syn::punctuated::Punctuated;
 use syn::token::{Comma, Const};
@@ -15,7 +15,7 @@ pub fn inject_item(item: &mut Item) {
 }
 
 fn inject_fn(item_fn: &mut ItemFn) {
-    inject_any_fn(FnHeaderBuilder::StaticFn, &item_fn.attrs, &item_fn.constness, &item_fn.ident, &mut item_fn.decl,
+    inject_any_fn(&FnHeaderBuilder::StaticFn, &item_fn.attrs, &item_fn.constness, &item_fn.ident, &mut item_fn.decl,
                   &mut *item_fn.block);
 }
 
@@ -39,29 +39,25 @@ fn inject_trait(item_trait: &mut ItemTrait) {
             default: Some(ref mut block),
             ..
         }) = *item {
-            inject_any_method(FnHeaderBuilder::TraitDefault, attrs, sig, block);
+            inject_any_method(&FnHeaderBuilder::TraitDefault, attrs, sig, block);
         }
     }
-//    for item in items.iter_mut().filter(|i| do_item_attrs_let_injector_in(&i.attrs)) {
-//        if let TraitItemKind::Method(
-//            MethodSig {
-//                unsafety: _,
-//                ref constness,
-//                abi: _,
-//                ref mut decl,
-//                generics: _},
-//            Some(ref mut block)) = item.node {
-//            let builder = HeaderBuilder::default()
-//                .set_is_method();
-//            inject_fn(builder, &item.ident, &mut decl.inputs, constness, block);
-//        }
-//    }
 }
 
 fn inject_impl(item_impl: &mut ItemImpl) {
     if is_not_mockable(&item_impl.attrs) {
         return
     }
+    let builder = match item_impl.trait_ {
+        Some((_, ref path, _)) => FnHeaderBuilder::TraitImpl(&path.segments),
+        None => FnHeaderBuilder::StructImpl,
+    };
+    for impl_item in &mut item_impl.items {
+        if let ImplItem::Method(ref mut item_method) = *impl_item {
+            inject_any_method(&builder, &item_method.attrs, &mut item_method.sig, &mut item_method.block);
+        }
+    }
+
 //    for item in items.iter_mut().filter(|i| do_item_attrs_let_injector_in(&i.attrs)) {
 //        if let ImplItemKind::Method(
 //            MethodSig {
@@ -80,11 +76,11 @@ fn inject_impl(item_impl: &mut ItemImpl) {
 //    }
 }
 
-fn inject_any_method(builder: FnHeaderBuilder, attrs: &Vec<Attribute>, sig: &mut MethodSig, block: &mut Block) {
+fn inject_any_method(builder: &FnHeaderBuilder, attrs: &Vec<Attribute>, sig: &mut MethodSig, block: &mut Block) {
     inject_any_fn(builder, attrs, &sig.constness, &sig.ident, &mut sig.decl, block)
 }
 
-fn inject_any_fn(builder: FnHeaderBuilder, attrs: &Vec<Attribute>, constness: &Option<Const>, fn_name: &Ident,
+fn inject_any_fn(builder: &FnHeaderBuilder, attrs: &Vec<Attribute>, constness: &Option<Const>, fn_name: &Ident,
                  fn_decl: &mut FnDecl, block: &mut Block) {
     if constness.is_some() || fn_decl.variadic.is_some() || is_not_mockable(attrs) {
         return

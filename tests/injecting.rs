@@ -29,32 +29,32 @@ mod injector_injects_annotated_fns {
     }
 }
 
-//mod injector_injects_annotated_impl_blocks {
-//    use super::*;
-//
-//    struct Struct;
-//
-//    #[mockable]
-//    impl Struct {
-//        fn function() -> &'static str {
-//            "not mocked"
-//        }
-//    }
-//
-//    #[test]
-//    fn when_not_mocked_then_runs_normally() {
-//        assert_eq!("not mocked", Struct::function());
-//    }
-//
-//    #[test]
-//    fn when_mocked_then_runs_mock() {
-//        unsafe {
-//            Struct::function.mock_raw(|| MockResult::Return("mocked"))
-//        }
-//
-//        assert_eq!("mocked", Struct::function());
-//    }
-//}
+mod injector_injects_annotated_impl_blocks {
+    use super::*;
+
+    struct Struct;
+
+    #[mockable]
+    impl Struct {
+        fn function() -> &'static str {
+            "not mocked"
+        }
+    }
+
+    #[test]
+    fn when_not_mocked_then_runs_normally() {
+        assert_eq!("not mocked", Struct::function());
+    }
+
+    #[test]
+    fn when_mocked_then_runs_mock() {
+        unsafe {
+            Struct::function.mock_raw(|| MockResult::Return("mocked"))
+        }
+
+        assert_eq!("mocked", Struct::function());
+    }
+}
 
 mod injector_injects_annotated_traits {
     use super::*;
@@ -118,34 +118,34 @@ mod injector_injects_annotated_items {
         }
     }
 
-//    mod injects_impl_blocks {
-//        use super::*;
-//
-//        struct Struct;
-//
-//        #[mockable]
-//        mod module {
-//            impl Struct {
-//                pub fn function() -> &'static str {
-//                    "not mocked"
-//                }
-//            }
-//        }
-//
-//        #[test]
-//        fn when_not_mocked_then_runs_normally() {
-//            assert_eq!("not mocked", Struct::function());
-//        }
-//
-//        #[test]
-//        fn when_mocked_then_runs_mock() {
-//            unsafe {
-//                Struct::function.mock_raw(|| MockResult::Return("mocked"))
-//            }
-//
-//            assert_eq!("mocked", Struct::function());
-//        }
-//    }
+    mod injects_impl_blocks {
+        use super::*;
+
+        struct Struct;
+
+        #[mockable]
+        mod module {
+            impl Struct {
+                pub fn function() -> &'static str {
+                    "not mocked"
+                }
+            }
+        }
+
+        #[test]
+        fn when_not_mocked_then_runs_normally() {
+            assert_eq!("not mocked", Struct::function());
+        }
+
+        #[test]
+        fn when_mocked_then_runs_mock() {
+            unsafe {
+                Struct::function.mock_raw(|| MockResult::Return("mocked"))
+            }
+
+            assert_eq!("mocked", Struct::function());
+        }
+    }
 
     mod injects_traits {
         use super::*;
@@ -254,33 +254,33 @@ mod injector_does_not_inject_items_twice {
         }
     }
 
-//    mod injects_explicitly_double_annotated_impl_block_once {
-//        use super::*;
-//
-//        struct MockedStruct;
-//
-//        #[mockable]
-//        #[mockable]
-//        impl MockedStruct {
-//            pub fn mocked_fn(x: u32) -> u32 {
-//                x * 2
-//            }
-//        }
-//
-//        #[test]
-//        fn when_not_mocked_then_runs_normally() {
-//            assert_eq!(2, MockedStruct::mocked_fn(1));
-//        }
-//
-//        #[test]
-//        fn when_mocked_then_runs_mock_once() {
-//            unsafe {
-//                MockedStruct::mocked_fn.mock_raw(|x| MockResult::Continue((x + 1,)))
-//            }
-//
-//            assert_eq!(4, MockedStruct::mocked_fn(1));
-//        }
-//    }
+    mod injects_explicitly_double_annotated_impl_block_once {
+        use super::*;
+
+        struct MockedStruct;
+
+        #[mockable]
+        #[mockable]
+        impl MockedStruct {
+            pub fn mocked_fn(x: u32) -> u32 {
+                x * 2
+            }
+        }
+
+        #[test]
+        fn when_not_mocked_then_runs_normally() {
+            assert_eq!(2, MockedStruct::mocked_fn(1));
+        }
+
+        #[test]
+        fn when_mocked_then_runs_mock_once() {
+            unsafe {
+                MockedStruct::mocked_fn.mock_raw(|x| MockResult::Continue((x + 1,)))
+            }
+
+            assert_eq!(4, MockedStruct::mocked_fn(1));
+        }
+    }
 
     mod injects_explicitly_double_annotated_traits_once {
         use super::*;
@@ -366,35 +366,35 @@ mod injector_does_not_inject_items_twice {
         }
     }
 
-//    mod injects_implicitly_double_annotated_impl_block_once {
-//        use super::*;
-//
-//        struct MockedStruct;
-//
-//        #[mockable]
-//        mod mocked_mod {
-//            #[mockable]
-//            impl MockedStruct {
-//                pub fn mocked_fn(x: u32) -> u32 {
-//                    x * 2
-//                }
-//            }
-//        }
-//
-//        #[test]
-//        fn when_not_mocked_then_runs_normally() {
-//            assert_eq!(2, MockedStruct::mocked_fn(1));
-//        }
-//
-//        #[test]
-//        fn when_mocked_then_runs_mock_once() {
-//            unsafe {
-//                MockedStruct::mocked_fn.mock_raw(|x| MockResult::Continue((x + 1,)))
-//            }
-//
-//            assert_eq!(4, MockedStruct::mocked_fn(1));
-//        }
-//    }
+    mod injects_implicitly_double_annotated_impl_block_once {
+        use super::*;
+
+        struct MockedStruct;
+
+        #[mockable]
+        mod mocked_mod {
+            #[mockable]
+            impl MockedStruct {
+                pub fn mocked_fn(x: u32) -> u32 {
+                    x * 2
+                }
+            }
+        }
+
+        #[test]
+        fn when_not_mocked_then_runs_normally() {
+            assert_eq!(2, MockedStruct::mocked_fn(1));
+        }
+
+        #[test]
+        fn when_mocked_then_runs_mock_once() {
+            unsafe {
+                MockedStruct::mocked_fn.mock_raw(|x| MockResult::Continue((x + 1,)))
+            }
+
+            assert_eq!(4, MockedStruct::mocked_fn(1));
+        }
+    }
 
     mod injects_implicitly_double_annotated_traits_once {
         use super::*;
