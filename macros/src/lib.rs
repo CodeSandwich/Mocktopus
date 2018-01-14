@@ -2,7 +2,7 @@
 #![doc(html_logo_url = "https://raw.githubusercontent.com/CodeSandwich/mocktopus/master/logo.png",
     html_favicon_url = "https://raw.githubusercontent.com/CodeSandwich/mocktopus/master/logo.png")]
 
-#![feature(proc_macro)]
+#![feature(conservative_impl_trait, proc_macro)]
 
 extern crate proc_macro;
 extern crate syn;

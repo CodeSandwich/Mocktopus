@@ -23,7 +23,7 @@
 //        }
 //    }
 //}
-//
+//set_input_argsset_input_argsset_input_args
 //fn remove_lifetimes_from_ty(ty: &mut Ty) {
 //    match *ty {
 //        Ty::Slice(ref mut ty_box) => remove_lifetimes_from_ty(ty_box),

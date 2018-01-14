@@ -1,5 +1,6 @@
-use header_builder::HeaderBuilder;
-use syn::{ArgCaptured, Attribute, Block, FnArg, Ident, Item, ItemFn, ItemImpl, ItemMod, ItemTrait, Pat, PatIdent};
+use header_builder::FnHeaderBuilder;
+use syn::{ArgCaptured, Attribute, Block, FnArg, FnDecl, Ident, Item, ItemFn, ItemImpl, ItemMod, ItemTrait,
+          MethodSig, Pat, PatIdent, TraitItem, TraitItemMethod};
 use syn::punctuated::Punctuated;
 use syn::token::{Comma, Const};
 
@@ -14,8 +15,8 @@ pub fn inject_item(item: &mut Item) {
 }
 
 fn inject_fn(item_fn: &mut ItemFn) {
-    inject_any_fn(HeaderBuilder::default(), &item_fn.attrs, &item_fn.constness, &item_fn.ident,
-                  &mut item_fn.decl.inputs, &mut *item_fn.block);
+    inject_any_fn(FnHeaderBuilder::StaticFn, &item_fn.attrs, &item_fn.constness, &item_fn.ident, &mut item_fn.decl,
+                  &mut *item_fn.block);
 }
 
 fn inject_mod(item_mod: &mut ItemMod) {
@@ -30,6 +31,16 @@ fn inject_mod(item_mod: &mut ItemMod) {
 fn inject_trait(item_trait: &mut ItemTrait) {
     if is_not_mockable(&item_trait.attrs) {
         return
+    }
+    for item in &mut item_trait.items {
+        if let TraitItem::Method(TraitItemMethod {
+            ref attrs,
+            ref mut sig,
+            default: Some(ref mut block),
+            ..
+        }) = *item {
+            inject_any_method(FnHeaderBuilder::TraitDefault, attrs, sig, block);
+        }
     }
 //    for item in items.iter_mut().filter(|i| do_item_attrs_let_injector_in(&i.attrs)) {
 //        if let TraitItemKind::Method(
@@ -69,39 +80,36 @@ fn inject_impl(item_impl: &mut ItemImpl) {
 //    }
 }
 
-fn inject_any_fn(builder: HeaderBuilder, attrs: &Vec<Attribute>, constness: &Option<Const>, fn_name: &Ident,
-                 inputs: &mut Punctuated<FnArg, Comma>, block: &mut Block) {
-    if constness.is_some() || is_not_mockable(attrs) {
+fn inject_any_method(builder: FnHeaderBuilder, attrs: &Vec<Attribute>, sig: &mut MethodSig, block: &mut Block) {
+    inject_any_fn(builder, attrs, &sig.constness, &sig.ident, &mut sig.decl, block)
+}
+
+fn inject_any_fn(builder: FnHeaderBuilder, attrs: &Vec<Attribute>, constness: &Option<Const>, fn_name: &Ident,
+                 fn_decl: &mut FnDecl, block: &mut Block) {
+    if constness.is_some() || fn_decl.variadic.is_some() || is_not_mockable(attrs) {
         return
     }
-    unignore_fn_args(inputs);
-    let header_stmt = builder
-        .set_fn_name(fn_name)
-        .set_input_args(inputs)
-        .build();
+    unignore_fn_args(&mut fn_decl.inputs);
+    let header_stmt = builder.build(fn_name, &fn_decl.inputs);
     block.stmts.insert(0, header_stmt);
-//    let mut body_stmts = mem::replace(&mut block.stmts, header_stmts);
-//    block.stmts.append(&mut body_stmts);
 }
 
 fn unignore_fn_args(inputs: &mut Punctuated<FnArg, Comma>) {
     for (i, fn_arg) in inputs.iter_mut().enumerate() {
-        match *fn_arg {
-            FnArg::Captured(
-                ArgCaptured {
-                    pat: ref mut pat @ Pat::Wild(_),
-                    ..
+        if let FnArg::Captured(
+            ArgCaptured {
+                pat: ref mut pat @ Pat::Wild(_),
+                ..
+            }
+        ) = *fn_arg {
+            *pat = Pat::Ident(
+                PatIdent {
+                    by_ref: None,
+                    mutability: None,
+                    ident: Ident::from(format!("__mocktopus_unignored_argument_{}__", i)),
+                    subpat: None,
                 }
-            ) => *pat =
-                Pat::Ident(
-                    PatIdent {
-                        by_ref: None,
-                        mutability: None,
-                        ident: Ident::from(format!("__mocktopus_unignored_argument_{}__", i)),
-                        subpat: None,
-                    }
-                ),
-            _ => ()
+            )
         }
     }
 }
