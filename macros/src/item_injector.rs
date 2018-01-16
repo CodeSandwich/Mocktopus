@@ -57,23 +57,6 @@ fn inject_impl(item_impl: &mut ItemImpl) {
             inject_any_method(&builder, &item_method.attrs, &mut item_method.sig, &mut item_method.block);
         }
     }
-
-//    for item in items.iter_mut().filter(|i| do_item_attrs_let_injector_in(&i.attrs)) {
-//        if let ImplItemKind::Method(
-//            MethodSig {
-//                unsafety: _,
-//                ref constness,
-//                abi: _,
-//                ref mut decl,
-//                generics: _},
-//            ref mut block) = item.node {
-//            let builder = HeaderBuilder::default()
-//                .set_is_method()
-//                // full path with trait name is needed in impl of concrete struct to avoid ambiguity
-//                .set_trait_path(trait_path);
-//            inject_fn(builder, &item.ident, &mut decl.inputs, constness, block);
-//        }
-//    }
 }
 
 fn inject_any_method(builder: &FnHeaderBuilder, attrs: &Vec<Attribute>, sig: &mut MethodSig, block: &mut Block) {

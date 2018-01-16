@@ -1,6 +1,6 @@
-use display_delegate::DisplayDelegate;
-//use lifetime_remover::remove_lifetimes_from_path;
-use quote::ToTokens;
+use display_delegate::display;
+use lifetime_remover::remove_lifetimes_from_path;
+use quote::{ToTokens};
 use std::fmt::{Error, Formatter};
 use syn::{self, ArgCaptured, FnArg, Ident, Pat, PatIdent, PathSegment, Stmt};
 use syn::punctuated::Punctuated;
@@ -36,31 +36,29 @@ r#"{{
     }}
 }}"#,
             mocktopus_crate         = MOCKTOPUS_EXTERN_CRATE_NAME,
-            full_fn_name            = DisplayDelegate::new(|f| self.write_full_fn_name(f, fn_ident)),
-            args_tuple              = DisplayDelegate::new(|f| write_args_tuple(f, fn_args)),
+            full_fn_name            = display(|f| write_full_fn_name(f, self, fn_ident)),
+            args_tuple              = display(|f| write_args_tuple(f, fn_args)),
             args_replacement_tuple  = ARGS_REPLACEMENT_TUPLE_NAME,
-            args_replacement        = DisplayDelegate::new(|f| write_args_replacement(f, fn_args)),
-            args_forget             = DisplayDelegate::new(|f| write_args_forget(f, fn_args)));
+            args_replacement        = display(|f| write_args_replacement(f, fn_args)),
+            args_forget             = display(|f| write_args_forget(f, fn_args)));
         syn::parse_str(&header_str).expect(error_msg!("generated header unparsable"))
     }
+}
 
-    fn write_full_fn_name(&self, f: &mut Formatter, fn_ident: &Ident) -> Result<(), Error> {
-        match *self {
-            FnHeaderBuilder::StaticFn => (),
-            FnHeaderBuilder::StructImpl |
-                FnHeaderBuilder::TraitDefault => write!(f, "Self::")?,
-            FnHeaderBuilder::TraitImpl(_trait_path) => unimplemented!(),//write!(f, "<Self as {}>::", trait_name.as_ref())?,
-        }
-        write!(f, "{}", fn_ident.as_ref())
+fn write_full_fn_name(f: &mut Formatter, builder: &FnHeaderBuilder, fn_ident: &Ident) -> Result<(), Error> {
+    match *builder {
+        FnHeaderBuilder::StaticFn => (),
+        FnHeaderBuilder::StructImpl |
+        FnHeaderBuilder::TraitDefault => write!(f, "Self::")?,
+        FnHeaderBuilder::TraitImpl(ref path) => write!(f, "<Self as {}>::", display(|f| write_trait_path(f, path)))?,
     }
+    write!(f, "{}", fn_ident.as_ref())
+}
 
-//    fn write_trait_casting_name(f: &mut Formatter, path: &Path) -> Result<(), Error> {
-//        let mut path_without_lifetimes = path.clone();
-//        remove_lifetimes_from_path(&mut path_without_lifetimes);
-//        let mut tokens = Tokens::new();
-//        path_without_lifetimes.to_tokens(&mut tokens);
-//        write!(f, "{}", tokens.as_str())
-//    }
+fn write_trait_path<T: ToTokens + Clone>(f: &mut Formatter, trait_path: &Punctuated<PathSegment, T>) -> Result<(), Error> {
+    let mut trait_path_without_lifetimes = trait_path.clone();
+    remove_lifetimes_from_path(&mut trait_path_without_lifetimes);
+    write!(f, "{}", trait_path_without_lifetimes.into_tokens())
 }
 
 fn write_args_tuple<T>(f: &mut Formatter, fn_args: &Punctuated<FnArg, T>) -> Result<(), Error> {

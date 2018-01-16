@@ -1,110 +1,99 @@
-//use syn::{BareFnTy, ConstExpr, FunctionRetTy, Path, PathParameters, Ty, TyParamBound};
-//
-//pub fn remove_lifetimes_from_path(path: &mut Path) {
-//    for path_segment in &mut path.segments {
-//        match path_segment.parameters {
-//            PathParameters::AngleBracketed(ref mut angle_bracketed_parameter_data) => {
-//                angle_bracketed_parameter_data.lifetimes.truncate(0);
-//                for ty in &mut angle_bracketed_parameter_data.types {
-//                    remove_lifetimes_from_ty(ty);
-//                }
-//                for type_binding in &mut angle_bracketed_parameter_data.bindings {
-//                    remove_lifetimes_from_ty(&mut type_binding.ty);
-//                }
-//            },
-//            PathParameters::Parenthesized(ref mut parenthesized_parameter_data) => {
-//                for ty in &mut parenthesized_parameter_data.inputs {
-//                    remove_lifetimes_from_ty(ty);
-//                }
-//                if let Some(ty) = parenthesized_parameter_data.output.as_mut() {
-//                    remove_lifetimes_from_ty(ty);
-//                }
-//            },
-//        }
-//    }
-//}
-//set_input_argsset_input_argsset_input_args
-//fn remove_lifetimes_from_ty(ty: &mut Ty) {
-//    match *ty {
-//        Ty::Slice(ref mut ty_box) => remove_lifetimes_from_ty(ty_box),
-//        Ty::Array(ref mut ty_box, ref mut const_expr) => {
-//            remove_lifetimes_from_ty(ty_box);
-//            remove_lifetimes_from_const_expr(const_expr);
-//        },
-//        Ty::Ptr(ref mut mut_ty_box) => remove_lifetimes_from_ty(&mut mut_ty_box.ty),
-//        Ty::Rptr(ref mut lifetime_opt, ref mut mut_ty_box) => {
-//            lifetime_opt.take();
-//            remove_lifetimes_from_ty(&mut mut_ty_box.ty);
-//        },
-//        Ty::BareFn(ref mut bare_fn_ty_box) => remove_lifetimes_from_bare_fn_ty(bare_fn_ty_box),
-//        Ty::Never => (),
-//        Ty::Tup(ref mut ty_vec) => {
-//            for ty in ty_vec {
-//                remove_lifetimes_from_ty(ty);
-//            }
-//        },
-//        Ty::Path(ref mut qself_opt, ref mut path) => {
-//            if let Some(qself) = qself_opt.as_mut() {
-//                remove_lifetimes_from_ty(&mut qself.ty);
-//            }
-//            remove_lifetimes_from_path(path);
-//        },
-//        Ty::TraitObject(ref mut ty_param_bound_vec) => remove_lifetimes_from_ty_param_bounds(ty_param_bound_vec),
-//        Ty::ImplTrait(ref mut ty_param_bound_vec) => remove_lifetimes_from_ty_param_bounds(ty_param_bound_vec),
-//        Ty::Paren(ref mut ty_box) => remove_lifetimes_from_ty(ty_box),
-//        Ty::Infer => (),
-//        Ty::Mac(_) => (),
-//    }
-//}
-//
-//fn remove_lifetimes_from_const_expr(const_expr: &mut ConstExpr) {
-//    match *const_expr {
-//        ConstExpr::Call(ref mut const_expr_box, ref mut const_expr_vec) => {
-//            remove_lifetimes_from_const_expr(const_expr_box);
-//            for const_expr in const_expr_vec {
-//                remove_lifetimes_from_const_expr(const_expr);
-//            }
-//        },
-//        ConstExpr::Binary(_, ref mut const_expr_box_1, ref mut const_expr_box_2) => {
-//            remove_lifetimes_from_const_expr(const_expr_box_1);
-//            remove_lifetimes_from_const_expr(const_expr_box_2);
-//        },
-//        ConstExpr::Unary(_, ref mut const_expr_box) => remove_lifetimes_from_const_expr(const_expr_box),
-//        ConstExpr::Lit(_) => (),
-//        ConstExpr::Cast(ref mut const_expr_box, ref mut ty_box) => {
-//            remove_lifetimes_from_const_expr(const_expr_box);
-//            remove_lifetimes_from_ty(ty_box);
-//        },
-//        ConstExpr::Path(ref mut path) => remove_lifetimes_from_path(path),
-//        ConstExpr::Index(ref mut const_expr_box_1, ref mut const_expr_box_2) => {
-//            remove_lifetimes_from_const_expr(const_expr_box_1);
-//            remove_lifetimes_from_const_expr(const_expr_box_2);
-//        },
-//        ConstExpr::Paren(ref mut const_expr_box) => remove_lifetimes_from_const_expr(const_expr_box),
-//        ConstExpr::Other(_) => (), // Questionable reachability and very hard lifetime removal
-//    }
-//}
-//
-//fn remove_lifetimes_from_bare_fn_ty(bare_fn_ty: &mut BareFnTy) {
-//    bare_fn_ty.lifetimes.truncate(0);
-//    for input in &mut bare_fn_ty.inputs {
-//        remove_lifetimes_from_ty(&mut input.ty);
-//    }
-//    if let FunctionRetTy::Ty(ref mut ty) = bare_fn_ty.output {
-//        remove_lifetimes_from_ty(ty);
-//    }
-//}
-//
-//fn remove_lifetimes_from_ty_param_bounds(ty_param_bounds: &mut Vec<TyParamBound>) {
-//    for i in (0..ty_param_bounds.len()).rev() {
-//        match ty_param_bounds[i] {
-//            TyParamBound::Trait(ref mut poly_trait_ref, _) => {
-//                poly_trait_ref.bound_lifetimes.truncate(0);
-//                remove_lifetimes_from_path(&mut poly_trait_ref.trait_ref);
-//                continue;
-//            },
-//            TyParamBound::Region(_) => (),
-//        }
-//        ty_param_bounds.remove(i);
-//    }
-//}
+use std::mem;
+use syn::{AngleBracketedGenericArguments, GenericArgument, ParenthesizedGenericArguments, PathArguments, PathSegment,
+          TypeBareFn, TypeParamBound, TypePath, TypeReference, ReturnType, Type};
+use syn::punctuated::{Pair, Punctuated};
+
+pub fn remove_lifetimes_from_path<T>(path: &mut Punctuated<PathSegment, T>) {
+    for path_segment in path {
+        match path_segment.arguments {
+            PathArguments::AngleBracketed(ref mut args) => remove_lifetimes_from_angle_bracketed_arguments(args),
+            PathArguments::Parenthesized(ref mut args)  => remove_lifetimes_from_parenthesized_arguments(args),
+            PathArguments::None                         => (),
+        }
+    }
+}
+
+fn remove_lifetimes_from_angle_bracketed_arguments(generic_arguments: &mut AngleBracketedGenericArguments) {
+    filter_map_punctuated(&mut generic_arguments.args, |mut generic_argument| {
+        match generic_argument {
+            GenericArgument::Lifetime(_)            => return None,
+            GenericArgument::Type(ref mut type_)    => remove_lifetimes_from_type(type_),
+            _                                       => (),
+        };
+        Some(generic_argument)
+    });
+}
+
+fn remove_lifetimes_from_parenthesized_arguments(generic_arguments: &mut ParenthesizedGenericArguments) {
+    modify_punctuated(&mut generic_arguments.inputs, remove_lifetimes_from_type);
+    if let ReturnType::Type(_, ref mut type_box) = generic_arguments.output {
+        remove_lifetimes_from_type(type_box)
+    }
+}
+
+fn remove_lifetimes_from_type(type_: &mut Type) {
+    match *type_ {
+        Type::Slice(ref mut slice)              => remove_lifetimes_from_type(&mut slice.elem),
+        Type::Array(ref mut array)              => remove_lifetimes_from_type(&mut array.elem),
+        Type::Ptr(ref mut ptr)                  => remove_lifetimes_from_type(&mut ptr.elem),
+        Type::Reference(ref mut reference)      => remove_lifetimes_from_type_reference(reference),
+        Type::BareFn(ref mut bare_fn)           => remove_lifetimes_from_type_bare_fn(bare_fn),
+        Type::Never(_)                          => (),
+        Type::Tuple(ref mut tuple)              => modify_punctuated(&mut tuple.elems, remove_lifetimes_from_type),
+        Type::Path(ref mut path)                => remove_lifetimes_from_type_path(path),
+        Type::TraitObject(ref mut trait_object) => remove_lifetimes_from_type_param_bounds(&mut trait_object.bounds),
+        Type::ImplTrait(ref mut impl_trait)     => remove_lifetimes_from_type_param_bounds(&mut impl_trait.bounds),
+        Type::Paren(ref mut paren)              => remove_lifetimes_from_type(&mut paren.elem),
+        Type::Group(ref mut group)              => remove_lifetimes_from_type(&mut group.elem),
+        Type::Infer(_)                          => (),
+        Type::Macro(_)                          => (),
+        Type::Verbatim(_)                       => (),
+    }
+}
+
+fn remove_lifetimes_from_type_reference(type_reference: &mut TypeReference) {
+    type_reference.lifetime.take();
+    remove_lifetimes_from_type(&mut type_reference.elem);
+}
+
+fn remove_lifetimes_from_type_bare_fn(type_bare_fn: &mut TypeBareFn) {
+    type_bare_fn.lifetimes.take();
+    modify_punctuated(&mut type_bare_fn.inputs, |t| remove_lifetimes_from_type(&mut t.ty));
+}
+
+fn remove_lifetimes_from_type_path(type_path: &mut TypePath) {
+    type_path.qself.as_mut().map(|q| remove_lifetimes_from_type(&mut q.ty));
+    remove_lifetimes_from_path(&mut type_path.path.segments);
+}
+
+fn remove_lifetimes_from_type_param_bounds<T>(type_param_bounds: &mut Punctuated<TypeParamBound, T>,) {
+    filter_map_punctuated(type_param_bounds, |type_param_bound|
+        match type_param_bound {
+            TypeParamBound::Trait(mut trait_bound) => {
+                trait_bound.lifetimes.take();
+                remove_lifetimes_from_path(&mut trait_bound.path.segments);
+                Some(TypeParamBound::Trait(trait_bound))
+            },
+            TypeParamBound::Lifetime(_) => None,
+        });
+}
+
+fn modify_punctuated<T, P, F: Fn(&mut T)>(punctuated: &mut Punctuated<T, P>, modifier: F) {
+    punctuated.iter_mut().for_each(modifier)
+}
+
+fn filter_map_punctuated<T, P, F: Fn(T) -> Option<T>>(punctuated: &mut Punctuated<T, P>, filter_map: F) {
+    let has_no_trailing_punct = !punctuated.empty_or_trailing();
+    let filtered_iter = mem::replace(punctuated, Punctuated::new())
+        .into_pairs()
+        .filter_map(|p| match p {
+            Pair::Punctuated(t, p)  => filter_map(t).map(|t| Pair::Punctuated(t, p)),
+            Pair::End(t)            => filter_map(t).map(|t| Pair::End(t)),
+        });
+    punctuated.extend(filtered_iter);
+    if has_no_trailing_punct && punctuated.trailing_punct() {
+        if let Some(pair) = punctuated.pop() {
+            punctuated.push_value(pair.into_value())
+        }
+    }
+}
