@@ -51,7 +51,7 @@ mod mocks_do_not_leak_between_tests {
                     assert_eq!("not mocked", no_args_returns_str(), "function was mocked before mocking");
 
                     unsafe {
-                        no_args_returns_str.mock_raw(|| MockResult::Return((stringify!($fn_name))));
+                        no_args_returns_str.mock_raw(|| MockResult::Return(stringify!($fn_name)));
                     }
 
                     assert_eq!(stringify!($fn_name), no_args_returns_str(), "mocking failed");
