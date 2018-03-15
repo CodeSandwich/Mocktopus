@@ -1,6 +1,8 @@
+extern crate cargo_edit;
 extern crate cargo_metadata;
 extern crate fs_extra;
 
+use cargo_edit::Manifest;
 use cargo_metadata::Metadata;
 use std::fs;
 use std::path::PathBuf;
@@ -20,6 +22,16 @@ fn main() {
 
 }
 
+fn modify_packages(metadata: &Metadata) {
+    let mut workspace_target = PathBuf::from(&metadata.workspace_root);
+    workspace_target.push(MOCKTOPUS_DIR);
+    fs::read_dir(workspace_target)
+        .unwrap()
+        .map(|res| res.unwrap().path().join("Cargo.toml"))
+        .map(|path| Manifest::open(&Some(path)).unwrap())
+        .for_each()
+}
+
 fn copy_packages(metadata: &Metadata) {
     let mut workspace_target = PathBuf::from(&metadata.workspace_root);
     workspace_target.push(MOCKTOPUS_DIR);
@@ -33,7 +45,7 @@ fn copy_packages(metadata: &Metadata) {
         let sources = fs::read_dir(PathBuf::from(&package.manifest_path).parent().unwrap())
             .unwrap()
             .map(|res| res.unwrap())
-            .filter(|entry| entry.file_name() != *MOCKTOPUS_DIR)
+            .filter(|entry| entry.file_name() != *MOCKTOPUS_DIR && entry.file_name() != *"target")
             .map(|entry| entry.path())
             .collect();
         let target = workspace_target.join(&package.name);
@@ -41,5 +53,6 @@ fn copy_packages(metadata: &Metadata) {
             .unwrap();
         fs_extra::copy_items(&sources, target, &copy_opts)
             .unwrap();
+
     }
 }
