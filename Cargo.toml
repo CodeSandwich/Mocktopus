@@ -20,4 +20,4 @@ doctest = false
 mocktopus_macros = "=0.3.8"
 
 [workspace]
-members = ["macros"]
+members = ["macros", "mtest"]

@@ -1,0 +1,3 @@
+cargo build &&
+cp ../target/debug/cargo-mtest ~/.cargo/bin &&
+cargo mtest

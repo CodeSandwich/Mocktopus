@@ -1,0 +1,20 @@
+[package]
+name = "cargo-mtest"
+version = "0.0.1"
+authors = ["CodeSandwich <igor.zuk@protonmail.com>"]
+description = "Mocktopus Cargo plugin"
+repository = "https://github.com/CodeSandwich/Mocktopus"
+license = "MIT"
+
+[dependencies]
+cargo = "^0.22"
+mocktopus_macros = { path = "../macros"}
+rand = { git = "https://github.com/rust-lang-nursery/rand" }
+cargo_metadata = "~0.5.3"
+#cargo-edit = "0.3.0-alpha.1"
+#cargo_metadata = "0.3.3"
+#copy_dir = "0.1.2"
+#quote = "0.3.15"
+#serde_json = "1.0"
+#syn = { version = "0.11.11", features = ["full"] }
+#toml = "^0.4.5"
