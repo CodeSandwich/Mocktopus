@@ -13,6 +13,7 @@ rand = { git = "https://github.com/rust-lang-nursery/rand" }
 cargo_metadata = "~0.5.3"
 fs_extra = "~1.1.0"
 cargo-edit = "0.3.0-beta.1"
+data-encoding = "2.1.1"
 #cargo_metadata = "0.3.3"
 #copy_dir = "0.1.2"
 #quote = "0.3.15"
