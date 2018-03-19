@@ -23,43 +23,43 @@ fn main() {
         println!("     Mocking {}", package.id);
         let package_path = copy_package(package, &workspace_target);
         inject_manifest(package_path, &package.id, &metadata);
-//        let dep_ids = get_dependenies_ids(&metadata, &package.id);
-//        let mut manifest = Manifest::open(&target)
-//            .expect("3");
-//        let sections = manifest.get_sections();
-//        sections.iter()
-//            .flat_map(|&(ref section, ref item)|
-//                item.as_table_like()
-//                    .expect("4")
-//                    .iter()
-//                    .zip(iter::repeat(section))
-//                    .filter_map(|((name, _), section)| create_dependency(&dep_ids, name).map(|dep| (section, dep))))
-//            .collect::<Vec<_>>()
-//            .into_iter()
-//            .for_each(|(section, dependency)| manifest.update_table_entry(&*section, &dependency).expect("7"));
-//        manifest.write_to_file(&mut Manifest::find_file(&target).expect("8")).expect("9");
     }
     println!("Finished mocking");
-    println!("cargo test --manifest-path ")
 }
 
 fn inject_manifest(package_path: PathBuf, package_id: &str, metadata: &Metadata) {
-    let dep_ids = get_dependenies_ids(&metadata, package_id);
     let package_path_opt = Some(package_path);
-    let mut manifest = Manifest::open(&package_path_opt)
+    let mut package_manifest = Manifest::open(&package_path_opt)
         .expect("3");
-    let sections = manifest.get_sections();
-    sections.iter()
-        .flat_map(|&(ref section, ref item)|
+    replace_deps_with_mocks(&mut package_manifest, package_id, metadata);
+    add_mocktopus_dep(&mut package_manifest);
+    package_manifest.write_to_file(&mut Manifest::find_file(&package_path_opt).expect("8")).expect("9");
+}
+
+fn replace_deps_with_mocks(package_manifest: &mut Manifest, package_id: &str, metadata: &Metadata) {
+    let dep_ids = get_dependenies_ids(&metadata, package_id);
+    let sections = package_manifest.get_sections();
+    let dep_replacements = sections.iter()
+        .flat_map(|&(ref dep_path, ref item)|
             item.as_table_like()
                 .expect("4")
                 .iter()
-                .zip(iter::repeat(section))
-                .filter_map(|((name, _), section)| create_dependency(&dep_ids, name).map(|dep| (section, dep))))
-        .collect::<Vec<_>>()
-        .into_iter()
-        .for_each(|(section, dependency)| manifest.update_table_entry(&*section, &dependency).expect("7"));
-    manifest.write_to_file(&mut Manifest::find_file(&package_path_opt).expect("8")).expect("9");
+                .zip(iter::repeat(dep_path))
+                .filter_map(|((dep_name, _), dep_path)|
+                    create_dependency(&dep_ids, dep_name)
+                        .map(|dep| (dep_path, dep))))
+        .collect::<Vec<_>>();
+    for (dep_path, dep) in dep_replacements {
+        package_manifest.update_table_entry(&*dep_path, &dep)
+            .expect("7")
+    }
+}
+
+fn add_mocktopus_dep(package_manifest: &mut Manifest) {
+    let dep_path = ["dependencies".to_string()];
+    let dep = Dependency::new("mocktopus").set_version("=0.2.0");
+    package_manifest.insert_into_table(&dep_path, &dep)
+        .expect("10")
 }
 
 fn get_dependenies_ids<'a>(metadata: &'a Metadata, id: &str) -> &'a [String] {
