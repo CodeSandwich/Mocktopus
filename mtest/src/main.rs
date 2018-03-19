@@ -1,3 +1,5 @@
+#![feature(conservative_impl_trait)]
+
 extern crate cargo_edit;
 extern crate cargo_metadata;
 extern crate data_encoding;
@@ -18,29 +20,56 @@ fn main() {
     let metadata = cargo_metadata::metadata_deps(None, true).expect("0");
     let workspace_target = create_workspace_target(&metadata);
     for package in &metadata.packages {
-        let target = Some(copy_package(package, &workspace_target));
-        let dep_ids = &metadata.resolve.as_ref()
-            .expect("1")
-            .nodes.iter()
-            .find(|n| n.id == package.id)
-            .expect("2")
-            .dependencies;
-        let mut manifest = Manifest::open(&target)
-            .expect("3");
-        let sections = manifest.get_sections();
-        sections.iter()
-            .flat_map(|&(ref section, ref item)|
-                item.as_table_like()
-                    .expect("4")
-                    .iter()
-                    .zip(iter::repeat(section))
-                    .filter_map(|((name, _), section)| create_dependency(&dep_ids, name).map(|dep| (section, dep))))
-            .collect::<Vec<_>>()
-            .into_iter()
-            .for_each(|(section, dependency)| manifest.update_table_entry(&*section, &dependency).expect("7"));
-        manifest.write_to_file(&mut Manifest::find_file(&target).expect("8")).expect("9");
+        println!("     Mocking {}", package.id);
+        let package_path = copy_package(package, &workspace_target);
+        inject_manifest(package_path, &package.id, &metadata);
+//        let dep_ids = get_dependenies_ids(&metadata, &package.id);
+//        let mut manifest = Manifest::open(&target)
+//            .expect("3");
+//        let sections = manifest.get_sections();
+//        sections.iter()
+//            .flat_map(|&(ref section, ref item)|
+//                item.as_table_like()
+//                    .expect("4")
+//                    .iter()
+//                    .zip(iter::repeat(section))
+//                    .filter_map(|((name, _), section)| create_dependency(&dep_ids, name).map(|dep| (section, dep))))
+//            .collect::<Vec<_>>()
+//            .into_iter()
+//            .for_each(|(section, dependency)| manifest.update_table_entry(&*section, &dependency).expect("7"));
+//        manifest.write_to_file(&mut Manifest::find_file(&target).expect("8")).expect("9");
     }
+    println!("Finished mocking");
     println!("cargo test --manifest-path ")
+}
+
+fn inject_manifest(package_path: PathBuf, package_id: &str, metadata: &Metadata) {
+    let dep_ids = get_dependenies_ids(&metadata, package_id);
+    let package_path_opt = Some(package_path);
+    let mut manifest = Manifest::open(&package_path_opt)
+        .expect("3");
+    let sections = manifest.get_sections();
+    sections.iter()
+        .flat_map(|&(ref section, ref item)|
+            item.as_table_like()
+                .expect("4")
+                .iter()
+                .zip(iter::repeat(section))
+                .filter_map(|((name, _), section)| create_dependency(&dep_ids, name).map(|dep| (section, dep))))
+        .collect::<Vec<_>>()
+        .into_iter()
+        .for_each(|(section, dependency)| manifest.update_table_entry(&*section, &dependency).expect("7"));
+    manifest.write_to_file(&mut Manifest::find_file(&package_path_opt).expect("8")).expect("9");
+}
+
+fn get_dependenies_ids<'a>(metadata: &'a Metadata, id: &str) -> &'a [String] {
+    metadata.resolve.as_ref()
+        .expect("1")
+        .nodes.iter()
+        .find(|n| n.id == id)
+        .expect("2")
+        .dependencies
+        .as_slice()
 }
 
 fn create_dependency(dep_ids: &[String], name: &str) -> Option<Dependency> {
