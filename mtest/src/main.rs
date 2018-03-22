@@ -57,7 +57,7 @@ fn replace_deps_with_mocks(package_manifest: &mut Manifest, package_id: &str, me
 
 fn add_mocktopus_dep(package_manifest: &mut Manifest) {
     let dep_path = ["dependencies".to_string()];
-    let dep = Dependency::new("mocktopus").set_version("=0.2.0");
+    let dep = Dependency::new("code-sandwich-crates-io-release-test").set_version("*");
     package_manifest.insert_into_table(&dep_path, &dep)
         .expect("10")
 }
@@ -117,26 +117,29 @@ fn copy_package(package: &Package, workspace_target: &PathBuf) -> PathBuf {
     target
 }
 
-const VALID_CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-";
-
 fn encode_id(id_str: &str) -> String {
-    fn flush_encoded(id: &[u8], invalid_char_idx: &mut Option<usize>, curr_idx: usize, result: &mut String) {
-        if let Some(idx) = invalid_char_idx.take() {
-            write!(result, ".{}.", BASE64URL_NOPAD.encode(&id[idx..curr_idx])).unwrap()
-        }
-    }
-
     let id = id_str.as_bytes();
     let mut result = String::new();
-    let mut invalid_char_idx = None;
-    for (idx, curr_char) in id.iter().enumerate() {
-        if VALID_CHARS.contains(curr_char) {
-            flush_encoded(id, &mut invalid_char_idx, idx, &mut result);
-            result.push(*curr_char as char);
+    let mut escaped_seq_start = None;
+    for (curr_idx, curr_byte) in id.iter().cloned().enumerate() {
+        if byte_is_valid(curr_byte) {
+            escape_seq(id, &mut escaped_seq_start, curr_idx, &mut result);
+            result.push(curr_byte as char); // All valid chars are ASCII (1-byte UTF-8)
         } else {
-            invalid_char_idx.get_or_insert(idx);
+            escaped_seq_start.get_or_insert(curr_idx);
         }
     }
-    flush_encoded(id, &mut invalid_char_idx, id.len(), &mut result);
+    escape_seq(id, &mut escaped_seq_start, id.len(), &mut result);
     result
+}
+
+fn byte_is_valid(byte: u8) -> bool {
+    BASE64URL_NOPAD.specification().symbols.as_bytes().contains(&byte)
+        && byte != b'.'
+}
+
+fn escape_seq(id: &[u8], invalid_char_idx: &mut Option<usize>, curr_idx: usize, result: &mut String) {
+    if let Some(idx) = invalid_char_idx.take() {
+        write!(result, ".{}.", BASE64URL_NOPAD.encode(&id[idx..curr_idx])).unwrap()
+    }
 }
