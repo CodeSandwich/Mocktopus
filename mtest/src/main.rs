@@ -1,5 +1,6 @@
 #![feature(conservative_impl_trait)]
 
+extern crate cargo;
 extern crate cargo_edit;
 extern crate cargo_metadata;
 extern crate data_encoding;

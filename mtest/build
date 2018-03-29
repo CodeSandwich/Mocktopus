@@ -1,3 +1,5 @@
 cargo build &&
 cp ../target/debug/cargo-mtest ~/.cargo/bin &&
 cargo mtest
+cd
+cargo test --manifest-path ../target/mocktopus/mocktopus.IA.0.Lg.2.Lg.0.ICg.path.Kw.file.Oi8vLw.home.Lw.zuczek.Lw.workspace.Lw.Mocktopus.KQ./Cargo.toml
