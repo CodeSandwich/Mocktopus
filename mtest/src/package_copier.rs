@@ -1,3 +1,4 @@
+use super::encode_id;
 use cargo::core::{Package as CargoPackage, SourceId};
 use cargo::core::manifest::EitherManifest;
 use cargo::sources::PathSource;
@@ -5,12 +6,9 @@ use cargo::util::Config;
 use cargo::util::toml;
 use cargo_metadata::{Metadata, Package};
 use filetime::FileTime;
-use fs_extra;
-use fs_extra::dir::CopyOptions;
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
-use super::encode_id;
 
 const TARGET_DIR: &str = "target";
 const MOCKTOPUS_DIR: &str = "mocktopus";
@@ -20,6 +18,56 @@ pub struct PackageCopier {
     old_dirs:   HashSet<PathBuf>,
     root:       PathBuf,
 }
+
+//pub fn copy_packages(workspace_info: &WorkspaceInfo) -> HashMap<String, PathBuf> {
+//    let package_copier = NewPackageCopier::new(workspace_info);
+//
+//}
+
+pub struct WockspaceCopyInfo {
+    pub package_paths: HashMap<String, PathBuf>,
+    pub modified_files: HashSet<PathBuf>,
+}
+
+struct NewPackageCopier {
+    old_files: HashMap<PathBuf, FileTime>,
+    old_dirs: HashSet<PathBuf>,
+    root: PathBuf,
+    package_paths: HashMap<String, PathBuf>,
+    modified_files: HashSet<PathBuf>,
+}
+
+//impl NewPackageCopier {
+//    pub fn new(workspace_info: &WorkspaceInfo) -> Self {
+//        let mut copier = NewPackageCopier {
+//            old_files:  HashMap::new(),
+//            old_dirs:   HashSet::new(),
+//            root:       PathBuf::new(),
+//        };
+//        let mut root = workspace_info.target.join(MOCKTOPUS_DIR);
+//        match root.is_dir() {
+//            true => copier.fill_from_dir(&root),
+//            false => fs::create_dir_all(&root).expect("13"),
+//        }
+//        copier.root = root;
+//        copier
+//    }
+//
+//    fn fill_from_dir<P: AsRef<Path>>(&mut self, dir: P) {
+//        for dir_entry_res in fs::read_dir(dir).expect("14") {
+//            let dir_entry = dir_entry_res.expect("15");
+//            let path = dir_entry.path();
+//            let metadata = dir_entry.metadata().expect("16");
+//            if metadata.is_dir() {
+//                self.fill_from_dir(&path);
+//                self.old_dirs.insert(path);
+//            } else if metadata.is_file() {
+//                self.old_files.insert(path, FileTime::from_last_modification_time(&metadata));
+//            }
+//        }
+//    }
+//
+//}
 
 impl PackageCopier {
     pub fn new(metadata: &Metadata) -> Self {
@@ -60,7 +108,6 @@ impl PackageCopier {
         for src in &get_package_files(package) {
             self.copy_file_and_parents(&dest, src_root, src);
         }
-//        self.copy_dir(&dest, src_root);
         dest
     }
 
@@ -78,20 +125,6 @@ impl PackageCopier {
             self.copy_file(&dest, src, src_meta)
         }
     }
-
-//    fn create_dir<P: AsRef<Path>>(&mut self, dest: &PathBuf, src: P) {
-//        self.create_dir_empty(dest);
-//        self.create_dir_content(dest, src);
-//    }
-
-//    fn copy_fs_item(&mut self, dest: PathBuf, src: PathBuf) {
-//        let src_meta = src.metadata().expect("21");
-//        if src_meta.is_dir() {
-//            self.create_dir(&dest);
-//        } else if src_meta.is_file() {
-//            self.copy_file(dest, src, src_meta)
-//        }
-//    }
 
     fn create_dir(&mut self, dest: &PathBuf) {
         if self.old_dirs.remove(dest) {
@@ -116,14 +149,6 @@ impl PackageCopier {
         fs::copy(src, dest).expect("27");
     }
 
-//    fn copy_dir_content<P: AsRef<Path>>(&mut self, dest: &PathBuf, src_ref: P) {
-//        let src = src_ref.as_ref();
-//        fs::read_dir(src)
-//            .expect("26")
-//            .map(|entry| entry.expect("27").file_name())
-//            .for_each(|file_name| self.copy_fs_item(dest.join(&file_name), src.join(&file_name)))
-//    }
-
     pub fn remove_old(self) {
         self.old_dirs.iter()
             .filter(|dir| dir.exists())
@@ -145,6 +170,7 @@ fn get_package_files(package: &Package) -> Vec<PathBuf> {
         EitherManifest::Real(manifest) => manifest,
         EitherManifest::Virtual(_) => panic!("35"),
     };
+    println!("WORKSPACE {:?}", manifest.workspace_config());
     PathSource::new(&src_manifest, &source_id, &config)
         .list_files(&CargoPackage::new(manifest, &src_manifest))
         .expect("31")

@@ -8,6 +8,9 @@ extern crate filetime;
 extern crate fs_extra;
 
 mod package_copier;
+mod package_info;
+mod workspace_copier;
+mod workspace_info;
 
 use cargo_edit::{Dependency, Manifest};
 use cargo_metadata::Metadata;
@@ -16,15 +19,21 @@ use package_copier::PackageCopier;
 use std::fmt::Write;
 use std::iter;
 use std::path::PathBuf;
+use workspace_copier::WorkspaceCopy;
+use workspace_info::WorkspaceInfo;
 
 fn main() {
-    let metadata = cargo_metadata::metadata_deps(None, true).expect("0");
-    let mut package_copier = PackageCopier::new(&metadata);
-    for package in &metadata.packages {
-        println!("     Mocking {}", package.id);
-        let package_path = package_copier.copy_package(package);
-        inject_manifest(package_path, &package.id, &metadata);
-    }
+    let workspace_info = WorkspaceInfo::new(None);
+    let workspace_copy = WorkspaceCopy::create(&workspace_info);
+
+//    let metadata = cargo_metadata::metadata_deps(None, true).expect("0");
+//    let mut package_copier = PackageCopier::new(&metadata);
+//    for package in &metadata.packages {
+//        println!("     Mocking {}", package.id);
+//        let package_path = package_copier.copy_package(package);
+//        inject_manifest(package_path, &package.id, &metadata);
+//    }
+//    package_copier.remove_old();
     println!("Finished mocking");
 }
 
