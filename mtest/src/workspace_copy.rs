@@ -20,7 +20,7 @@ impl WorkspaceCopy {
         let mut workspace_copier = WorkspaceCopier::new(&workspace_info.target_root);
         for package_info in &workspace_info.packages {
             println!("Copying {}", package_info.id);
-            workspace_copier.copy_package(package_info, &workspace_info.workspace_root)
+            workspace_copier.copy_package(package_info, &workspace_info.workspace_root) //TODO move ws_root into copier
         }
         workspace_copier.finish()
     }
@@ -37,22 +37,39 @@ struct WorkspaceCopier {
 
 impl WorkspaceCopier {
     pub fn new(workspace_target_root: &PathBuf) -> Self {
-        let mocktopus_dir   = workspace_target_root.join(MOCKTOPUS_DIR);
-        let mut old_files   = HashMap::new();
-        let mut old_dirs    = HashSet::new();
-        let deps_root       = mocktopus_dir.join(DEPS_DIR);
-        let tested_root     = mocktopus_dir.join(TESTED_DIR);
-        collect_dir_content(&mut old_dirs, &mut old_files, &deps_root);
-        collect_dir_content(&mut old_dirs, &mut old_files, &tested_root);
-        WorkspaceCopier {
-            old_files,
-            old_dirs,
-            deps_root,
-            tested_root,
+        let mocktopus_dir = workspace_target_root.join(MOCKTOPUS_DIR);
+        let deps_root = mocktopus_dir.join(DEPS_DIR);
+        fs::create_dir_all(&deps_root).expect("43");
+        let tested_root = mocktopus_dir.join(TESTED_DIR);
+        fs::create_dir_all(&tested_root).expect("44");
+        let mut copier = WorkspaceCopier {
+            old_files:      HashMap::new(),
+            old_dirs:       HashSet::new(),
+            deps_root:      deps_root.clone(),
+            tested_root:    tested_root.clone(),
             modified_files: HashSet::new(),
             package_paths:  HashMap::new(),
+        };
+        copier.collect_dir_content(&deps_root);
+        copier.collect_dir_content(&tested_root);
+        copier
+    }
+
+    fn collect_dir_content(&mut self, dir: &PathBuf) {
+        for dir_entry_res in fs::read_dir(dir).expect("14") {
+            let dir_entry = dir_entry_res.expect("15");
+            let path = dir_entry.path();
+            let metadata = dir_entry.metadata().expect("16");
+            if metadata.is_dir() {
+                self.collect_dir_content(&path);
+                self.old_dirs.insert(path);
+            } else if metadata.is_file() {
+                let last_modification = FileTime::from_last_modification_time(&metadata);
+                self.old_files.insert(path, last_modification);
+            }
         }
     }
+
     pub fn copy_package(&mut self, package_info: &PackageInfo, workspace_root: &PathBuf) {
         let src_root;
         let dest_root;
@@ -121,18 +138,13 @@ impl WorkspaceCopier {
     }
 }
 
-fn collect_dir_content(dirs: &mut HashSet<PathBuf>, files: &mut HashMap<PathBuf, FileTime>, dir: &PathBuf) {
-    println!("COLLECTING FROM DIR {:?}", dir);
-    for dir_entry_res in fs::read_dir(dir).expect("14") {
-        let dir_entry = dir_entry_res.expect("15");
-        let path = dir_entry.path();
-        let metadata = dir_entry.metadata().expect("16");
-        if metadata.is_dir() {
-            collect_dir_content(dirs, files, &path);
-            dirs.insert(path);
-        } else if metadata.is_file() {
-            let last_modification = FileTime::from_last_modification_time(&metadata);
-            files.insert(path, last_modification);
-        }
-    }
-}
+//fn create_dir_overwriting_files(root: &PathBuf, created_dir: &str) {
+//    if let Ok(metadata) = dir.metadata() {
+//        if metadata.is_dir() {
+//            return
+//        } else if metadata.is_file() {
+//            fs::remove_file(&dir).expect("41")
+//        }
+//    }
+//    fs::create_dir_all(&dir).expect("42")
+//}

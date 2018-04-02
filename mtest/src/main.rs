@@ -7,19 +7,19 @@ extern crate data_encoding;
 extern crate filetime;
 extern crate fs_extra;
 
-mod package_copier;
+//mod package_copier;
 mod package_info;
-mod workspace_copier;
+mod workspace_copy;
 mod workspace_info;
 
 use cargo_edit::{Dependency, Manifest};
 use cargo_metadata::Metadata;
 use data_encoding::BASE64URL_NOPAD;
-use package_copier::PackageCopier;
+//use package_copier::PackageCopier;
 use std::fmt::Write;
 use std::iter;
 use std::path::PathBuf;
-use workspace_copier::WorkspaceCopy;
+use workspace_copy::WorkspaceCopy;
 use workspace_info::WorkspaceInfo;
 
 fn main() {
