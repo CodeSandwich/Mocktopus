@@ -6,21 +6,25 @@ use cargo::util::toml;
 use std::path::PathBuf;
 
 pub struct PackageInfo {
-    pub is_dep: bool,
     pub id: String,
-    pub root: PathBuf, // TODO change to dep_root: Option<PathBuf>
+    pub dep_root: Option<PathBuf>,
     pub files: Vec<PathBuf>,
 }
 
 impl PackageInfo {
     pub fn new(id: &str, manifest_path: &str, is_dep: bool) -> Self {
-        let mut root = PathBuf::from(manifest_path);
-        let files = get_package_files(&root);
-        root.pop();
+        let mut path = PathBuf::from(manifest_path);
+        let files = get_package_files(&path);
+        if !path.pop() {
+            panic!("43");
+        }
+        let dep_root = match is_dep {
+            true => Some(path),
+            false => None,
+        };
         PackageInfo {
-            is_dep,
             id: id.to_string(),
-            root,
+            dep_root,
             files,
         }
     }

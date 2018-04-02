@@ -17,11 +17,12 @@ pub struct WorkspaceCopy {
 
 impl WorkspaceCopy {
     pub fn create(workspace_info: &WorkspaceInfo) -> Self {
-        let mut workspace_copier = WorkspaceCopier::new(&workspace_info.target_root);
+        let mut workspace_copier = WorkspaceCopier::new(workspace_info);
         for package_info in &workspace_info.packages {
             println!("Copying {}", package_info.id);
-            workspace_copier.copy_package(package_info, &workspace_info.workspace_root) //TODO move ws_root into copier
+            workspace_copier.copy_package(package_info)
         }
+        println!("Finished copying packages");
         workspace_copier.finish()
     }
 }
@@ -29,6 +30,7 @@ impl WorkspaceCopy {
 struct WorkspaceCopier {
     old_files:      HashMap<PathBuf, FileTime>,
     old_dirs:       HashSet<PathBuf>,
+    workspace_root: PathBuf,
     deps_root:      PathBuf,
     tested_root:    PathBuf,
     modified_files: HashSet<PathBuf>,
@@ -36,8 +38,8 @@ struct WorkspaceCopier {
 }
 
 impl WorkspaceCopier {
-    pub fn new(workspace_target_root: &PathBuf) -> Self {
-        let mocktopus_dir = workspace_target_root.join(MOCKTOPUS_DIR);
+    pub fn new(workspace_info: &WorkspaceInfo) -> Self {
+        let mocktopus_dir = workspace_info.target_root.join(MOCKTOPUS_DIR);
         let deps_root = mocktopus_dir.join(DEPS_DIR);
         fs::create_dir_all(&deps_root).expect("43");
         let tested_root = mocktopus_dir.join(TESTED_DIR);
@@ -45,6 +47,7 @@ impl WorkspaceCopier {
         let mut copier = WorkspaceCopier {
             old_files:      HashMap::new(),
             old_dirs:       HashSet::new(),
+            workspace_root: workspace_info.workspace_root.clone(),
             deps_root:      deps_root.clone(),
             tested_root:    tested_root.clone(),
             modified_files: HashSet::new(),
@@ -70,18 +73,21 @@ impl WorkspaceCopier {
         }
     }
 
-    pub fn copy_package(&mut self, package_info: &PackageInfo, workspace_root: &PathBuf) {
+    pub fn copy_package(&mut self, package_info: &PackageInfo) {
         let src_root;
         let dest_root;
-        if package_info.is_dep {
-            src_root = &package_info.root;
-            dest_root = self.deps_root.join(encode_id(&*package_info.id));
-        } else {
-            src_root = workspace_root;
-            dest_root = self.tested_root.clone();
+        match package_info.dep_root {
+            Some(ref dep_root) => {
+                src_root = dep_root.clone();
+                dest_root = self.deps_root.join(encode_id(&*package_info.id));
+            },
+            None => {
+                src_root = self.workspace_root.clone();
+                dest_root = self.tested_root.clone();
+            }
         }
         for file in &package_info.files {
-            self.copy_file_and_parents(src_root, file, &dest_root)
+            self.copy_file_and_parents(&src_root, file, &dest_root)
         }
     }
 
