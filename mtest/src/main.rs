@@ -8,14 +8,15 @@ extern crate filetime;
 extern crate fs_extra;
 
 //mod package_copier;
+//mod mock_injector;
 mod package_info;
 mod workspace_copy;
 mod workspace_info;
+mod workspace_injector;
 
 use cargo_edit::{Dependency, Manifest};
 use cargo_metadata::Metadata;
 use data_encoding::BASE64URL_NOPAD;
-//use package_copier::PackageCopier;
 use std::fmt::Write;
 use std::iter;
 use std::path::PathBuf;
@@ -24,7 +25,8 @@ use workspace_info::WorkspaceInfo;
 
 fn main() {
     let workspace_info = WorkspaceInfo::new(None);
-    let workspace_copy = WorkspaceCopy::create(&workspace_info);
+    let workspace_copy = WorkspaceCopy::create(workspace_info);
+    workspace_injector::inject_workspace(&workspace_copy);
 
 //    let metadata = cargo_metadata::metadata_deps(None, true).expect("0");
 //    let mut package_copier = PackageCopier::new(&metadata);
@@ -34,7 +36,6 @@ fn main() {
 //        inject_manifest(package_path, &package.id, &metadata);
 //    }
 //    package_copier.remove_old();
-    println!("Finished mocking");
 }
 
 fn inject_manifest(package_path: PathBuf, package_id: &str, metadata: &Metadata) {

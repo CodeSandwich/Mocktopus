@@ -3,6 +3,7 @@ use cargo::core::manifest::EitherManifest;
 use cargo::sources::PathSource;
 use cargo::util::Config;
 use cargo::util::toml;
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 pub struct PackageInfo {

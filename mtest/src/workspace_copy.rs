@@ -13,17 +13,18 @@ const TESTED_DIR:       &str = "tested";
 pub struct WorkspaceCopy {
     pub package_paths:  HashMap<String, PathBuf>,
     pub modified_files: HashSet<PathBuf>,
-}
+    pub package_id_to_dep_name_to_id: HashMap<String, HashMap<String, String>>,
+}  // TODO merge package paths and package_id_to_dep_name_to_id
 
 impl WorkspaceCopy {
-    pub fn create(workspace_info: &WorkspaceInfo) -> Self {
-        let mut workspace_copier = WorkspaceCopier::new(workspace_info);
+    pub fn create(workspace_info: WorkspaceInfo) -> Self {
+        let mut workspace_copier = WorkspaceCopier::new(&workspace_info);
         for package_info in &workspace_info.packages {
             println!("Copying {}", package_info.id);
             workspace_copier.copy_package(package_info)
         }
         println!("Finished copying packages");
-        workspace_copier.finish()
+        workspace_copier.finish(workspace_info.package_id_to_dep_name_to_id)
     }
 }
 
@@ -89,6 +90,7 @@ impl WorkspaceCopier {
         for file in &package_info.files {
             self.copy_file_and_parents(&src_root, file, &dest_root)
         }
+        self.package_paths.insert(package_info.id.clone(), dest_root);
     }
 
     fn copy_file_and_parents(&mut self, src_root: &PathBuf, src: &PathBuf, dest_root: &PathBuf) {
@@ -130,7 +132,7 @@ impl WorkspaceCopier {
         self.modified_files.insert(dest.clone());
     }
 
-    pub fn finish(self) -> WorkspaceCopy {
+    pub fn finish(self, package_id_to_dep_name_to_id: HashMap<String, HashMap<String, String>>) -> WorkspaceCopy {
         self.old_dirs.iter()
             .filter(|dir| dir.exists())
             .for_each(|dir| fs::remove_dir_all(dir).expect("18"));
@@ -140,6 +142,7 @@ impl WorkspaceCopier {
         WorkspaceCopy {
             package_paths: self.package_paths,
             modified_files: self.modified_files,
+            package_id_to_dep_name_to_id,
         }
     }
 }
