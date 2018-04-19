@@ -1,4 +1,4 @@
-use cargo_metadata::{self, Metadata, Node};
+use cargo_metadata::{self, Metadata};
 use package_info::PackageInfo;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -37,12 +37,12 @@ fn get_resolved_dependencies<'a>(metadata: &'a Metadata) -> HashMap<String, Hash
     metadata.resolve.as_ref()
         .expect("1")
         .nodes.iter()
-        .map(|node| (node.id.clone(), get_node_dependencies(node)))
+        .map(|node| (node.id.clone(), get_node_dependencies(&node.dependencies)))
         .collect()
 }
 
-fn get_node_dependencies(node: &Node) -> HashMap<String, String> {
-    node.dependencies.iter()
+fn get_node_dependencies(dependencies: &Vec<String>) -> HashMap<String, String> {
+    dependencies.iter()
         .map(|id| (id_to_name(id), id.clone()))
         .collect()
 }

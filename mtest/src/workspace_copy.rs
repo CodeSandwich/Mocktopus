@@ -77,20 +77,27 @@ impl WorkspaceCopier {
     pub fn copy_package(&mut self, package_info: &PackageInfo) {
         let src_root;
         let dest_root;
+        let dest_package;
         match package_info.dep_root {
             Some(ref dep_root) => {
                 src_root = dep_root.clone();
                 dest_root = self.deps_root.join(encode_id(&*package_info.id));
+                dest_package = dest_root.clone();
             },
             None => {
                 src_root = self.workspace_root.clone();
                 dest_root = self.tested_root.clone();
+                let workspace_rel_path = package_info.tested_root.as_ref()
+                    .expect("45")
+                    .strip_prefix(&src_root)
+                    .expect("46");
+                dest_package = dest_root.join(workspace_rel_path);
             }
         }
         for file in &package_info.files {
             self.copy_file_and_parents(&src_root, file, &dest_root)
         }
-        self.package_paths.insert(package_info.id.clone(), dest_root);
+        self.package_paths.insert(package_info.id.clone(), dest_package);
     }
 
     fn copy_file_and_parents(&mut self, src_root: &PathBuf, src: &PathBuf, dest_root: &PathBuf) {

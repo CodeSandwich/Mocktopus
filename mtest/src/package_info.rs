@@ -3,12 +3,12 @@ use cargo::core::manifest::EitherManifest;
 use cargo::sources::PathSource;
 use cargo::util::Config;
 use cargo::util::toml;
-use std::collections::HashMap;
 use std::path::PathBuf;
 
 pub struct PackageInfo {
     pub id: String,
     pub dep_root: Option<PathBuf>,
+    pub tested_root: Option<PathBuf>,
     pub files: Vec<PathBuf>,
 }
 
@@ -19,13 +19,14 @@ impl PackageInfo {
         if !path.pop() {
             panic!("43");
         }
-        let dep_root = match is_dep {
-            true => Some(path),
-            false => None,
+        let (dep_root, tested_root) = match is_dep {
+            true => (Some(path), None),
+            false => (None, Some(path)),
         };
         PackageInfo {
             id: id.to_string(),
             dep_root,
+            tested_root,
             files,
         }
     }

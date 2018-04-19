@@ -7,7 +7,7 @@ use workspace_copy::WorkspaceCopy;
 
 pub fn inject_workspace(workspace: &WorkspaceCopy) {
     for (package_id, package_path) in &workspace.package_paths {
-        println!("Mocking {:80} in {:?}", package_id, package_path);
+        println!("Mocking {} in {:?}", package_id, package_path);
         inject_manifest(workspace, package_id, package_path);
     }
     println!("Finished mocking packages");
