@@ -1,5 +1,5 @@
 use cargo_edit::{Dependency, Manifest};
-use cargo_metadata::Metadata;
+//use cargo_metadata::Metadata;
 use std::collections::HashMap;
 use std::iter;
 use std::path::PathBuf;
@@ -51,15 +51,15 @@ fn add_mocktopus_dep(package_manifest: &mut Manifest) {
         .expect("10")
 }
 
-fn get_dependenies_ids<'a>(metadata: &'a Metadata, id: &str) -> &'a [String] {
-    metadata.resolve.as_ref()
-        .expect("1")
-        .nodes.iter()
-        .find(|n| n.id == id)
-        .expect("2")
-        .dependencies
-        .as_slice()
-}
+//fn get_dependenies_ids<'a>(metadata: &'a Metadata, id: &str) -> &'a [String] {
+//    metadata.resolve.as_ref()
+//        .expect("1")
+//        .nodes.iter()
+//        .find(|n| n.id == id)
+//        .expect("2")
+//        .dependencies
+//        .as_slice()
+//}
 
 fn create_dependency(deps: &HashMap<String, String>, name: &str, package_paths: &HashMap<String, PathBuf>)
         -> Option<Dependency> {

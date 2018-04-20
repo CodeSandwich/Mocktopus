@@ -1,4 +1,4 @@
-use super::encode_id;
+use filename_encoder::encode_into_filename;
 use filetime::FileTime;
 use package_info::PackageInfo;
 use std::collections::{HashMap, HashSet};
@@ -81,7 +81,7 @@ impl WorkspaceCopier {
         match package_info.dep_root {
             Some(ref dep_root) => {
                 src_root = dep_root.clone();
-                dest_root = self.deps_root.join(encode_id(&*package_info.id));
+                dest_root = self.deps_root.join(encode_into_filename(&*package_info.id));
                 dest_package = dest_root.clone();
             },
             None => {
