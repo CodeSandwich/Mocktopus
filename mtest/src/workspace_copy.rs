@@ -54,18 +54,25 @@ impl WorkspaceCopier {
             modified_files: HashSet::new(),
             package_paths:  HashMap::new(),
         };
-        copier.collect_dir_content(&deps_root);
-        copier.collect_dir_content(&tested_root);
+        let excluded_dirs = workspace_info.target_root
+            .strip_prefix(&workspace_info.workspace_root)
+            .map(|rel_target| tested_root.join(rel_target))
+            .ok();
+        copier.collect_dir_content(&deps_root, &excluded_dirs);
+        copier.collect_dir_content(&tested_root, &excluded_dirs);
         copier
     }
 
-    fn collect_dir_content(&mut self, dir: &PathBuf) {
+    fn collect_dir_content(&mut self, dir: &PathBuf, excluded_dirs: &Option<PathBuf>) {
         for dir_entry_res in fs::read_dir(dir).expect("14") {
             let dir_entry = dir_entry_res.expect("15");
             let path = dir_entry.path();
             let metadata = dir_entry.metadata().expect("16");
             if metadata.is_dir() {
-                self.collect_dir_content(&path);
+                if excluded_dirs.into_iter().any(|excl| *excl == path) {
+                    continue;
+                }
+                self.collect_dir_content(&path, excluded_dirs);
                 self.old_dirs.insert(path);
             } else if metadata.is_file() {
                 let last_modification = FileTime::from_last_modification_time(&metadata);

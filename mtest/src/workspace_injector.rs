@@ -13,8 +13,14 @@ pub fn inject_workspace(workspace: &WorkspaceCopy) {
     println!("Finished mocking packages");
 }
 
+const MANIFEST_FILENAME: &str = "Cargo.toml";
+
 fn inject_manifest(workspace: &WorkspaceCopy, package_id: &String, package_path: &PathBuf) {
-    let package_path_opt = Some(package_path.clone());
+    let manifest_path = package_path.join(MANIFEST_FILENAME);
+    if !workspace.modified_files.contains(&manifest_path) {
+        return
+    }
+    let package_path_opt = Some(manifest_path);
     let mut package_manifest = Manifest::open(&package_path_opt)
         .expect("3");
     let deps = workspace.package_id_to_dep_name_to_id.get(package_id)

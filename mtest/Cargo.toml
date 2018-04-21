@@ -24,3 +24,4 @@ filetime = "0.1.15"
 
 [dev-dependencies]
 #code-sandwich-crates-io-release-test = "0.1.4"
+is-dev = "0.1.0"
