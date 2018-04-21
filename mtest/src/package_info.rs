@@ -3,30 +3,27 @@ use cargo::core::manifest::EitherManifest;
 use cargo::sources::PathSource;
 use cargo::util::Config;
 use cargo::util::toml;
+use package_kind::PackageKind;
 use std::path::PathBuf;
 
 pub struct PackageInfo {
     pub id: String,
-    pub dep_root: Option<PathBuf>,
-    pub tested_root: Option<PathBuf>,
+    pub kind: PackageKind,
+    pub root: PathBuf,
     pub files: Vec<PathBuf>,
 }
 
 impl PackageInfo {
-    pub fn new(id: &str, manifest_path: &str, is_dep: bool) -> Self {
-        let mut path = PathBuf::from(manifest_path);
-        let files = get_package_files(&path);
-        if !path.pop() {
+    pub fn new(id: &str, manifest_path: &str, kind: PackageKind) -> Self {
+        let mut root = PathBuf::from(manifest_path);
+        let files = get_package_files(&root);
+        if !root.pop() {
             panic!("43");
         }
-        let (dep_root, tested_root) = match is_dep {
-            true => (Some(path), None),
-            false => (None, Some(path)),
-        };
         PackageInfo {
             id: id.to_string(),
-            dep_root,
-            tested_root,
+            kind,
+            root,
             files,
         }
     }

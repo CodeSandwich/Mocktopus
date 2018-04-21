@@ -7,6 +7,7 @@ extern crate fs_extra;
 
 mod filename_encoder;
 mod package_info;
+mod package_kind;
 mod workspace_copy;
 mod workspace_info;
 mod workspace_injector;

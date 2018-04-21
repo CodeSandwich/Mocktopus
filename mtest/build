@@ -1,4 +1,4 @@
 cargo build &&
 cp ../target/debug/cargo-mtest ~/.cargo/bin &&
 cargo mtest &&
-cargo test --manifest-path ../target/mocktopus/tested/Cargo.tomlX
+cargo test --manifest-path ../target/mocktopus/tested/Cargo.toml

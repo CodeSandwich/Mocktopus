@@ -1,4 +1,5 @@
 use cargo_metadata::{self, Metadata};
+use package_kind::PackageKind;
 use package_info::PackageInfo;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -18,10 +19,11 @@ impl WorkspaceInfo {
             .collect::<Vec<_>>();
         let packages = metadata.packages.iter()
             .map(|package| {
-                let id = &*package.id;
-                let manifest_path = &*package.manifest_path;
-                let is_dep = !member_ids.contains(&package.id);
-                PackageInfo::new(id, manifest_path, is_dep)
+                let kind = match member_ids.contains(&package.id) {
+                    true => PackageKind::Tested,
+                    false => PackageKind::Dependency,
+                };
+                PackageInfo::new(&*package.id, &*package.manifest_path, kind)
             })
             .collect();
         WorkspaceInfo {

@@ -1,6 +1,7 @@
 use filename_encoder::encode_into_filename;
 use filetime::FileTime;
 use package_info::PackageInfo;
+use package_kind::PackageKind;
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::PathBuf;
@@ -85,20 +86,19 @@ impl WorkspaceCopier {
         let src_root;
         let dest_root;
         let dest_package;
-        match package_info.dep_root {
-            Some(ref dep_root) => {
-                src_root = dep_root.clone();
-                dest_root = self.deps_root.join(encode_into_filename(&*package_info.id));
-                dest_package = dest_root.clone();
-            },
-            None => {
+        match package_info.kind {
+            PackageKind::Tested => {
                 src_root = self.workspace_root.clone();
                 dest_root = self.tested_root.clone();
-                let workspace_rel_path = package_info.tested_root.as_ref()
-                    .expect("45")
+                let workspace_rel_path = package_info.root
                     .strip_prefix(&src_root)
                     .expect("46");
                 dest_package = dest_root.join(workspace_rel_path);
+            },
+            PackageKind::Dependency => {
+                src_root = package_info.root.clone();
+                dest_root = self.deps_root.join(encode_into_filename(&*package_info.id));
+                dest_package = dest_root.clone();
             }
         }
         for file in &package_info.files {
