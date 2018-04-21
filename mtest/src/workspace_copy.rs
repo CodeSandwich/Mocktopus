@@ -1,5 +1,6 @@
 use filename_encoder::encode_into_filename;
 use filetime::FileTime;
+use package_copy::PackageCopy;
 use package_info::PackageInfo;
 use package_kind::PackageKind;
 use std::collections::{HashMap, HashSet};
@@ -12,20 +13,19 @@ const DEPS_DIR:         &str = "deps";
 const TESTED_DIR:       &str = "tested";
 
 pub struct WorkspaceCopy {
-    pub package_paths:  HashMap<String, PathBuf>,
+    pub packages_by_id: HashMap<String, PackageCopy>,
     pub modified_files: HashSet<PathBuf>,
-    pub package_id_to_dep_name_to_id: HashMap<String, HashMap<String, String>>,
-}  // TODO merge package paths and package_id_to_dep_name_to_id
+}
 
 impl WorkspaceCopy {
     pub fn create(workspace_info: WorkspaceInfo) -> Self {
         let mut workspace_copier = WorkspaceCopier::new(&workspace_info);
-        for package_info in &workspace_info.packages {
+        for package_info in workspace_info.packages {
             println!("Copying {}", package_info.id);
             workspace_copier.copy_package(package_info)
         }
         println!("Finished copying packages");
-        workspace_copier.finish(workspace_info.package_id_to_dep_name_to_id)
+        workspace_copier.finish()
     }
 }
 
@@ -36,7 +36,7 @@ struct WorkspaceCopier {
     deps_root:      PathBuf,
     tested_root:    PathBuf,
     modified_files: HashSet<PathBuf>,
-    package_paths:  HashMap<String, PathBuf>,
+    packages_by_id: HashMap<String, PackageCopy>,
 }
 
 impl WorkspaceCopier {
@@ -53,7 +53,7 @@ impl WorkspaceCopier {
             deps_root:      deps_root.clone(),
             tested_root:    tested_root.clone(),
             modified_files: HashSet::new(),
-            package_paths:  HashMap::new(),
+            packages_by_id: HashMap::new(),
         };
         let excluded_dirs = workspace_info.target_root
             .strip_prefix(&workspace_info.workspace_root)
@@ -82,7 +82,7 @@ impl WorkspaceCopier {
         }
     }
 
-    pub fn copy_package(&mut self, package_info: &PackageInfo) {
+    pub fn copy_package(&mut self, package_info: PackageInfo) {
         let src_root;
         let dest_root;
         let dest_package;
@@ -96,7 +96,7 @@ impl WorkspaceCopier {
                 dest_package = dest_root.join(workspace_rel_path);
             },
             PackageKind::Dependency => {
-                src_root = package_info.root.clone();
+                src_root = package_info.root;
                 dest_root = self.deps_root.join(encode_into_filename(&*package_info.id));
                 dest_package = dest_root.clone();
             }
@@ -104,7 +104,8 @@ impl WorkspaceCopier {
         for file in &package_info.files {
             self.copy_file_and_parents(&src_root, file, &dest_root)
         }
-        self.package_paths.insert(package_info.id.clone(), dest_package);
+        let package_copy = PackageCopy::new(dest_package, package_info.dep_names_to_ids);
+        self.packages_by_id.insert(package_info.id, package_copy);
     }
 
     fn copy_file_and_parents(&mut self, src_root: &PathBuf, src: &PathBuf, dest_root: &PathBuf) {
@@ -118,7 +119,7 @@ impl WorkspaceCopier {
         if src_meta.is_dir() {
             self.create_dir(&dest);
         } else if src_meta.is_file() {
-            self.copy_file(src, src_meta, &dest)
+            self.copy_file(&src, src_meta, &dest)
         }
     }
 
@@ -146,7 +147,7 @@ impl WorkspaceCopier {
         self.modified_files.insert(dest.clone());
     }
 
-    pub fn finish(self, package_id_to_dep_name_to_id: HashMap<String, HashMap<String, String>>) -> WorkspaceCopy {
+    pub fn finish(self) -> WorkspaceCopy {
         self.old_dirs.iter()
             .filter(|dir| dir.exists())
             .for_each(|dir| fs::remove_dir_all(dir).expect("18"));
@@ -154,20 +155,8 @@ impl WorkspaceCopier {
             .filter(|file| file.exists())
             .for_each(|file| fs::remove_file(file).expect("19"));
         WorkspaceCopy {
-            package_paths: self.package_paths,
+            packages_by_id: self.packages_by_id,
             modified_files: self.modified_files,
-            package_id_to_dep_name_to_id,
         }
     }
 }
-
-//fn create_dir_overwriting_files(root: &PathBuf, created_dir: &str) {
-//    if let Ok(metadata) = dir.metadata() {
-//        if metadata.is_dir() {
-//            return
-//        } else if metadata.is_file() {
-//            fs::remove_file(&dir).expect("41")
-//        }
-//    }
-//    fs::create_dir_all(&dir).expect("42")
-//}

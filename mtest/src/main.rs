@@ -6,6 +6,7 @@ extern crate filetime;
 extern crate fs_extra;
 
 mod filename_encoder;
+mod package_copy;
 mod package_info;
 mod package_kind;
 mod workspace_copy;

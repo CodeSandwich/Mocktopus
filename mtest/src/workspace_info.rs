@@ -8,7 +8,6 @@ pub struct WorkspaceInfo {
     pub packages: Vec<PackageInfo>,
     pub workspace_root: PathBuf,
     pub target_root: PathBuf,
-    pub package_id_to_dep_name_to_id: HashMap<String, HashMap<String, String>>,
 }
 
 impl WorkspaceInfo {
@@ -17,29 +16,31 @@ impl WorkspaceInfo {
         let member_ids = metadata.workspace_members.iter()
             .map(|member| format!("{} {} ({})", member.name, member.version, member.url))
             .collect::<Vec<_>>();
+        let mut package_id_to_dep_name_to_id = get_resolved_dependencies(&metadata);
         let packages = metadata.packages.iter()
             .map(|package| {
                 let kind = match member_ids.contains(&package.id) {
                     true => PackageKind::Tested,
                     false => PackageKind::Dependency,
                 };
-                PackageInfo::new(&*package.id, &*package.manifest_path, kind)
+                let dep_names_to_ids = package_id_to_dep_name_to_id.remove(&package.id)
+                    .expect("3");
+                PackageInfo::new(&*package.id, &*package.manifest_path, kind, dep_names_to_ids)
             })
             .collect();
         WorkspaceInfo {
             packages,
             workspace_root: PathBuf::from(&metadata.workspace_root),
             target_root: PathBuf::from(&metadata.target_directory),
-            package_id_to_dep_name_to_id: get_resolved_dependencies(&metadata),
         }
     }
 }
 
-fn get_resolved_dependencies<'a>(metadata: &'a Metadata) -> HashMap<String, HashMap<String, String>> {
+fn get_resolved_dependencies<'a>(metadata: &'a Metadata) -> HashMap<&'a String, HashMap<String, String>> {
     metadata.resolve.as_ref()
         .expect("1")
         .nodes.iter()
-        .map(|node| (node.id.clone(), get_node_dependencies(&node.dependencies)))
+        .map(|node| (&node.id, get_node_dependencies(&node.dependencies)))
         .collect()
 }
 

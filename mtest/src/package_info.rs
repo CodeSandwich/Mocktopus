@@ -4,6 +4,7 @@ use cargo::sources::PathSource;
 use cargo::util::Config;
 use cargo::util::toml;
 use package_kind::PackageKind;
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 pub struct PackageInfo {
@@ -11,10 +12,11 @@ pub struct PackageInfo {
     pub kind: PackageKind,
     pub root: PathBuf,
     pub files: Vec<PathBuf>,
+    pub dep_names_to_ids: HashMap<String, String>,
 }
 
 impl PackageInfo {
-    pub fn new(id: &str, manifest_path: &str, kind: PackageKind) -> Self {
+    pub fn new(id: &str, manifest_path: &str, kind: PackageKind, dep_names_to_ids: HashMap<String, String>) -> Self {
         let mut root = PathBuf::from(manifest_path);
         let files = get_package_files(&root);
         if !root.pop() {
@@ -25,6 +27,7 @@ impl PackageInfo {
             kind,
             root,
             files,
+            dep_names_to_ids,
         }
     }
 }
