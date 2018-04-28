@@ -104,7 +104,11 @@ impl WorkspaceCopier {
         for file in &package_info.files {
             self.copy_file_and_parents(&src_root, file, &dest_root)
         }
-        let package_copy = PackageCopy::new(dest_package, package_info.dep_names_to_ids);
+        let entry_points = package_info.entry_points.iter()
+            .map(|src_path| src_path.strip_prefix(&src_root).expect("47"))
+            .map(|rel_path| dest_root.join(rel_path))
+            .collect();
+        let package_copy = PackageCopy::new(dest_package, package_info.dep_names_to_ids, entry_points);
         self.packages_by_id.insert(package_info.id, package_copy);
     }
 

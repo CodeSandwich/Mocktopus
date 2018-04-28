@@ -3,6 +3,7 @@ use cargo::core::manifest::EitherManifest;
 use cargo::sources::PathSource;
 use cargo::util::Config;
 use cargo::util::toml;
+use cargo_metadata::Package;
 use package_kind::PackageKind;
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -13,21 +14,26 @@ pub struct PackageInfo {
     pub root: PathBuf,
     pub files: Vec<PathBuf>,
     pub dep_names_to_ids: HashMap<String, String>,
+    pub entry_points: Vec<PathBuf>,
 }
 
 impl PackageInfo {
-    pub fn new(id: &str, manifest_path: &str, kind: PackageKind, dep_names_to_ids: HashMap<String, String>) -> Self {
-        let mut root = PathBuf::from(manifest_path);
+    pub fn new(package: &Package, kind: PackageKind, dep_names_to_ids: HashMap<String, String>) -> Self {
+        let mut root = PathBuf::from(&package.manifest_path);
         let files = get_package_files(&root);
         if !root.pop() {
             panic!("43");
         }
+        let entry_points = package.targets.iter()
+            .map(|target| PathBuf::from(&target.src_path))
+            .collect();
         PackageInfo {
-            id: id.to_string(),
+            id: package.id.clone(),
             kind,
             root,
             files,
             dep_names_to_ids,
+            entry_points,
         }
     }
 }

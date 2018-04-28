@@ -1,13 +1,17 @@
 use cargo_edit::{Dependency, Manifest};
 use package_copy::PackageCopy;
 use std::collections::HashMap;
+use std::fs::OpenOptions;
+use std::io::{Read, Seek, SeekFrom, Write};
 use std::iter;
+use std::path::PathBuf;
 use workspace_copy::WorkspaceCopy;
 
 pub fn inject_workspace(workspace: &WorkspaceCopy) {
     for (package_id, package_copy) in &workspace.packages_by_id {
         println!("Mocking {} in {:?}", package_id, package_copy.root);
         inject_manifest(workspace, package_copy);
+        inject_entry_points(workspace, package_copy);
     }
     println!("Finished mocking packages");
 }
@@ -22,7 +26,6 @@ fn inject_manifest(workspace: &WorkspaceCopy, package_copy: &PackageCopy) {
     let package_path_opt = Some(manifest_path);
     let mut package_manifest = Manifest::open(&package_path_opt)
         .expect("3");
-
     replace_deps_with_mocks(&mut package_manifest, workspace, package_copy);
     add_mocktopus_dep(&mut package_manifest);
     package_manifest.write_to_file(&mut Manifest::find_file(&package_path_opt).expect("8")).expect("9");
@@ -59,4 +62,25 @@ fn create_dependency(name: &str, dep_names_to_ids: &HashMap<String, String>,
         .map(|id| packages_by_id.get(id).expect("44"))
         .map(|package| package.root.to_str().expect("45"))
         .map(|path| Dependency::new(name).set_path(path))
+}
+
+fn inject_entry_points(workspace: &WorkspaceCopy, package_copy: &PackageCopy) {
+    package_copy.entry_points.iter()
+        .filter(|entry_point| workspace.modified_files.contains(*entry_point))
+        .for_each(inject_entry_point);
+}
+
+fn inject_entry_point(entry_point: &PathBuf) {
+    let mut file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(entry_point)
+        .expect(&format!("46 FILE {:?}", entry_point));
+    let mut content = "#![feature(proc_macro)]\n".to_string();
+    file.read_to_string(&mut content)
+        .expect("47");
+    file.seek(SeekFrom::Start(0))
+        .expect("48");
+    file.write(content.as_bytes())
+        .expect("49");
 }

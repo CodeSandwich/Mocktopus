@@ -25,7 +25,7 @@ impl WorkspaceInfo {
                 };
                 let dep_names_to_ids = package_id_to_dep_name_to_id.remove(&package.id)
                     .expect("3");
-                PackageInfo::new(&*package.id, &*package.manifest_path, kind, dep_names_to_ids)
+                PackageInfo::new(package, kind, dep_names_to_ids)
             })
             .collect();
         WorkspaceInfo {
