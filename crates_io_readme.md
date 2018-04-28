@@ -2,7 +2,7 @@
 
 Mocking framework for Rust (currently only nightly). See documentation for more.
 
-```
+```rust
 #[mockable]
 mod hello_world {
     pub fn world() -> &'static str {
