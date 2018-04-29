@@ -41,7 +41,7 @@ pub trait Mockable<T, O> {
     ///     assert_eq!("mocked", get_string(&Context::default()));
     /// }
     /// ```
-    unsafe fn mock_raw<M: Fn<T, Output=MockResult<T, O>>>(&self, mock: M);
+    unsafe fn mock_raw<M: FnMut<T, Output=MockResult<T, O>>>(&self, mock: M);
 
     /// A safe variant of [mock_raw](#tymethod.mock_raw) for static closures
     ///
@@ -61,7 +61,7 @@ pub trait Mockable<T, O> {
     ///     assert_eq!("mocked", get_string());
     /// }
     /// ```
-    fn mock_safe<M: Fn<T, Output=MockResult<T, O>> + 'static>(&self, mock: M);
+    fn mock_safe<M: FnMut<T, Output=MockResult<T, O>> + 'static>(&self, mock: M);
 
     #[doc(hidden)]
     /// Called before every execution of a mockable function. Checks if mock is set and if it is, calls it.
@@ -87,17 +87,17 @@ thread_local!{
 }
 
 impl<T, O, F: FnOnce<T, Output=O>> Mockable<T, O> for F {
-    unsafe fn mock_raw<M: Fn<T, Output=MockResult<T, O>>>(&self, mock: M) {
+    unsafe fn mock_raw<M: FnMut<T, Output=MockResult<T, O>>>(&self, mock: M) {
         let id = self.get_mock_id();
         MOCK_STORE.with(|mock_ref_cell| {
-            let fn_box: Box<Fn<T, Output=MockResult<T, O>>> = Box::new(mock);
+            let fn_box: Box<FnMut<T, Output=MockResult<T, O>>> = Box::new(mock);
             let stored: Box<Fn<(), Output=()>> = transmute(fn_box);
             let mock_map = &mut*mock_ref_cell.borrow_mut();
             mock_map.insert(id, stored);
         })
     }
 
-    fn mock_safe<M: Fn<T, Output=MockResult<T, O>> + 'static>(&self, mock: M) {
+    fn mock_safe<M: FnMut<T, Output=MockResult<T, O>> + 'static>(&self, mock: M) {
         unsafe {
             self.mock_raw(mock)
         }
