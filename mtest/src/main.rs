@@ -4,6 +4,9 @@ extern crate cargo_metadata;
 extern crate data_encoding;
 extern crate filetime;
 extern crate fs_extra;
+extern crate syn;
+//#[macro_use]
+extern crate quote;
 
 mod filename_encoder;
 mod package_copy;

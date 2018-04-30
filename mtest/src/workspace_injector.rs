@@ -1,10 +1,12 @@
 use cargo_edit::{Dependency, Manifest};
 use package_copy::PackageCopy;
+use quote::ToTokens;
 use std::collections::HashMap;
 use std::fs::OpenOptions;
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::iter;
 use std::path::PathBuf;
+use syn::{File, parse_file, parse_str};
 use workspace_copy::WorkspaceCopy;
 
 pub fn inject_workspace(workspace: &WorkspaceCopy) {
@@ -69,8 +71,33 @@ fn inject_entry_points(workspace: &WorkspaceCopy, package_copy: &PackageCopy) {
         .filter(|entry_point| workspace.modified_files.contains(*entry_point))
         .for_each(inject_entry_point);
 }
-
 fn inject_entry_point(entry_point: &PathBuf) {
+    let mut file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(entry_point)
+        .expect(&format!("46 FILE {:?}", entry_point));
+    let mut old_content = String::new();
+    file.read_to_string(&mut old_content)
+        .expect("47");
+    let new_content = inject_file_content(old_content);
+    file.seek(SeekFrom::Start(0))
+        .expect("48");
+    file.write(new_content.as_bytes())
+        .expect("49");
+}
+
+fn inject_file_content(content: String) -> String {
+    let mut file = parse_file(&content)
+        .expect("50");
+    let attr_file: File = parse_str("#![feature(proc_macro)]")
+        .expect("51");
+    file.attrs.extend(attr_file.attrs);
+    file.into_tokens()
+        .to_string()
+}
+
+fn inject_entry_point_old(entry_point: &PathBuf) {
     let mut file = OpenOptions::new()
         .read(true)
         .write(true)
@@ -81,6 +108,8 @@ fn inject_entry_point(entry_point: &PathBuf) {
         .expect("47");
     file.seek(SeekFrom::Start(0))
         .expect("48");
+    file.set_len(0)
+        .expect("52");
     file.write(content.as_bytes())
         .expect("49");
 }
