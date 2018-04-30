@@ -1,10 +1,11 @@
 use display_delegate::display;
 use lifetime_remover::remove_lifetimes_from_path;
+use proc_macro2::{Group, Span, TokenTree};
 use quote::{ToTokens};
 use std::fmt::{Error, Formatter};
-use syn::{self, ArgCaptured, FnArg, Ident, Pat, PatIdent, PathSegment, Stmt};
+use syn::{self, ArgCaptured, Block, Expr, ExprVerbatim, FnArg, Ident, Pat, PatIdent, PathSegment, Stmt};
 use syn::punctuated::Punctuated;
-use syn::token::{Comma, Colon2};
+use syn::token::{Comma, Colon2, Semi};
 
 const MOCKTOPUS_CRATE_NAME:     &str = "__mocktopus_crate__";
 const ARGS_TO_CONTINUE_NAME:    &str = "__mocktopus_args_to_continue__";
@@ -22,7 +23,7 @@ pub enum FnHeaderBuilder<'a> {
 }
 
 impl<'a> FnHeaderBuilder<'a> {
-    pub fn build(&self, fn_ident: &Ident, fn_args: &Punctuated<FnArg, Comma>) -> Stmt {
+    pub fn build(&self, fn_ident: &Ident, fn_args: &Punctuated<FnArg, Comma>, fn_block_span: Span) -> Stmt {
         let header_str = format!(
 r#"{{
     extern crate mocktopus as {mocktopus};
@@ -36,17 +37,43 @@ r#"{{
         }}
     }}
 }}"#,
-            mocktopus           = MOCKTOPUS_CRATE_NAME,
-            full_fn_name        = display(|f| write_full_fn_name(f, self, fn_ident)),
-            extract_args        = display(|f| write_extract_args(f, fn_args)),
-            args_to_continue    = ARGS_TO_CONTINUE_NAME,
-            restore_args        = display(|f| write_restore_args(f, fn_args)),
-            forget_args         = display(|f| write_forget_args(f, fn_args)),
-            unwind              = UNWIND_DATA_NAME);
-        syn::parse_str(&header_str)
-            .unwrap_or_else(|e| panic!("{}\ndetails: {}\nheader:\n{}",
-                                       error_msg!("generated header unparsable"), e, &header_str))
+        mocktopus           = MOCKTOPUS_CRATE_NAME,
+        full_fn_name        = display(|f| write_full_fn_name(f, self, fn_ident)),
+        extract_args        = display(|f| write_extract_args(f, fn_args)),
+        args_to_continue    = ARGS_TO_CONTINUE_NAME,
+        restore_args        = display(|f| write_restore_args(f, fn_args)),
+        forget_args         = display(|f| write_forget_args(f, fn_args)),
+        unwind              = UNWIND_DATA_NAME);
+        let header_block = syn::parse_str::<Block>(&header_str)
+            .expect(error_msg!("generated header unparsable"));
+        create_call_site_spanned_stmt(header_block, fn_block_span)
     }
+}
+
+fn create_call_site_spanned_stmt(block: Block, span: Span) -> Stmt {
+    let token_stream = block.into_tokens()
+        .into_iter()
+        .map(|tt| make_token_tree_span_call_site(tt, span))
+        .collect();
+    Stmt::Semi(
+        Expr::Verbatim(
+            ExprVerbatim {
+                tts: token_stream,
+            }
+        ),
+        Semi([span])
+    )
+}
+
+fn make_token_tree_span_call_site(mut token_tree: TokenTree, span: Span) -> TokenTree {
+    token_tree.set_span(span);
+    if let TokenTree::Group(ref mut group) = token_tree {
+        let tokens = group.stream().into_iter()
+            .map(|tt| make_token_tree_span_call_site(tt, span))
+            .collect();
+        *group = Group::new(group.delimiter(), tokens);
+    }
+    token_tree
 }
 
 fn write_full_fn_name(f: &mut Formatter, builder: &FnHeaderBuilder, fn_ident: &Ident) -> Result<(), Error> {

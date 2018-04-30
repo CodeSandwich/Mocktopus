@@ -2,9 +2,10 @@
 #![doc(html_logo_url = "https://raw.githubusercontent.com/CodeSandwich/mocktopus/master/logo.png",
     html_favicon_url = "https://raw.githubusercontent.com/CodeSandwich/mocktopus/master/logo.png")]
 
-#![feature(conservative_impl_trait, iterator_for_each, proc_macro)]
+#![feature(iterator_for_each, proc_macro)]
 
 extern crate proc_macro;
+extern crate proc_macro2;
 extern crate syn;
 extern crate quote;
 

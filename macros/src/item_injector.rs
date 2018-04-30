@@ -69,7 +69,7 @@ fn inject_any_fn(builder: &FnHeaderBuilder, attrs: &Vec<Attribute>, constness: &
         return
     }
     unignore_fn_args(&mut fn_decl.inputs);
-    let header_stmt = builder.build(fn_name, &fn_decl.inputs);
+    let header_stmt = builder.build(fn_name, &fn_decl.inputs, block.brace_token.0);
     block.stmts.insert(0, header_stmt);
 }
 
@@ -77,15 +77,19 @@ fn unignore_fn_args(inputs: &mut Punctuated<FnArg, Comma>) {
     for (i, fn_arg) in inputs.iter_mut().enumerate() {
         if let FnArg::Captured(
             ArgCaptured {
-                pat: ref mut pat @ Pat::Wild(_),
+                ref mut pat,
                 ..
             }
         ) = *fn_arg {
+            let span = match *pat {
+                Pat::Wild(ref pat_wild) => pat_wild.underscore_token.0[0],
+                _ => continue,
+            };
             *pat = Pat::Ident(
                 PatIdent {
                     by_ref: None,
                     mutability: None,
-                    ident: Ident::from(format!("__mocktopus_unignored_argument_{}__", i)),
+                    ident: Ident::new(&format!("__mocktopus_unignored_argument_{}__", i), span),
                     subpat: None,
                 }
             )
