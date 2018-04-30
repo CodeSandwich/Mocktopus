@@ -1,5 +1,5 @@
 [![Crates.io](https://img.shields.io/crates/d/mocktopus.svg)](https://crates.io/crates/mocktopus)
-[![Docs.rs](https://docs.rs/mocktopus/badge.svg)](https://docs.rs/mocktopus)
+[![Docs.rs](https://docs.rs/mocktopus/badge.svg)](https://docs.rs/crate/mocktopus)
 [![Build Status](https://travis-ci.org/CodeSandwich/Mocktopus.svg?branch=master)](https://travis-ci.org/CodeSandwich/Mocktopus)
 
 <p align="center">
