@@ -22,7 +22,8 @@ filetime = "0.1.15"
 #syn = { version = "0.11.11", features = ["full"] }
 #toml = "^0.4.5"
 syn = { version = "0.13.4", features = ["full"] }
-quote = "0.5"
+quote = "0.5.2"
+proc-macro2 = { version = "0.3.8", features = ["nightly"] }
 
 [dev-dependencies]
 #code-sandwich-crates-io-release-test = "0.1.4"

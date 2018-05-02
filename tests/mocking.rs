@@ -1,4 +1,4 @@
-#![feature(const_fn, proc_macro)]
+#![feature(const_fn, proc_macro, extern_absolute_paths, proc_macro_path_invoc)]
 
 extern crate mocktopus;
 
@@ -15,7 +15,7 @@ use std::fmt::Display;
 mod mock_safe {
     use super::*;
 
-    #[mockable]
+    #[::mocktopus::macros::mockable]
     pub fn no_args_returns_str() -> &'static str {
         "not mocked"
     }
