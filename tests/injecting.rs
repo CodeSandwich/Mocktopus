@@ -657,3 +657,89 @@ mod injector_unignores_args {
         assert_eq!(2, two_args_returns_first_ignores_second(1, 2));
     }
 }
+
+mod injecting_trait_impl_where_fn_return_type_has_longer_lifetime_than_required_by_trait {
+    use super::*;
+
+    struct Struct;
+
+    trait Trait {
+        fn function(&self) -> &str;
+    }
+
+    #[mockable]
+    impl Trait for Struct {
+        fn function(&self) -> &'static str {
+            "not mocked"
+        }
+    }
+
+    #[test]
+    fn when_not_mocked_then_runs_normally() {
+        assert_eq!("not mocked", Struct.function());
+    }
+
+    #[test]
+    fn when_not_mocked_then_returns_mock() {
+        Struct::function.mock_safe(|_| MockResult::Return("mocked"));
+
+        assert_eq!("mocked", Struct.function());
+    }
+}
+
+//mod WEIRD_STUFF {
+//    use super::*;
+//    use std::error::Error;
+//    use std::fmt::{Display, Error as FmtError, Formatter};
+//
+//    #[derive(Debug)]
+//    struct Foo<'a>(&'a str);
+//
+//    impl<'a> Display for Foo<'a> {
+//        fn fmt(&self, f: &mut Formatter) -> Result<(), FmtError> {
+//            write!(f, "{:?}", self)
+//        }
+//    }
+//
+////    #[mockable]
+//    impl<'a> Error for Foo<'a> {
+//        fn description(&self) -> &'static str {
+////            {
+////                extern crate mocktopus as __mocktopus_crate__;
+////                match ::std::panic::catch_unwind(::std::panic::AssertUnwindSafe(|| {
+////                    let self_mut = unsafe { __mocktopus_crate__::mocking_utils::as_mut(&self) };
+////                    let new_self = ::std::mem::replace(self_mut, unsafe { ::std::mem::uninitialized() } );
+////                    __mocktopus_crate__::mocking::Mockable::call_mock(
+////                        &<Self as Error>::description, (new_self,))
+////                    }
+////                    ))
+////                    {
+////                        Ok(__mocktopus_crate__::mocking::MockResult::Continue(__mocktopus_args_to_continue__))
+////                        => unsafe {
+////                            ::std::mem::replace(__mocktopus_crate__::mocking_utils::as_mut(&self),
+////                                                __mocktopus_args_to_continue__.0);
+////                        },
+////                        Ok(__mocktopus_crate__::mocking::MockResult::Return(result))
+////                        => return result,
+////                        Err(__mocktopus_unwind_data__) => {
+////                            ::std::mem::forget(self);
+////                            ::std::panic::resume_unwind(__mocktopus_unwind_data__);
+////                        }
+////                    }
+////            };
+//            "not mocked"
+//        }
+//    }
+//
+//    #[test]
+//    fn when_not_mocked_then_returns_() {
+//        assert_eq!("not mocked", Foo("mocked").description());
+//    }
+//
+//    #[test]
+//    fn when_mocked_then_returns_() {
+//        Foo::description.mock_safe(|foo| MockResult::Return(foo.0));
+//
+//        assert_eq!("mocked", Foo("mocked").description());
+//    }
+//}
