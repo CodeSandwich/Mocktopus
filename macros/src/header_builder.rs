@@ -30,11 +30,15 @@ r#"{{
     match ::std::panic::catch_unwind(::std::panic::AssertUnwindSafe (
             || {mocktopus}::mocking::Mockable::call_mock(&{full_fn_name}, {extract_args}))) {{
         Ok({mocktopus}::mocking::MockResult::Continue({args_to_continue})) => {restore_args},
-        Ok({mocktopus}::mocking::MockResult::Return(result)) => return unsafe {{ ::std::mem::transmute(result) }},
+        Ok({mocktopus}::mocking::MockResult::Return(result)) => {{
+            let returned = unsafe {{ ::std::mem::transmute_copy(&result) }};
+            ::std::mem::forget(result);
+            return returned;
+        }},
         Err({unwind}) => {{
             {forget_args}
             ::std::panic::resume_unwind({unwind});
-        }}
+        }},
     }}
 }}"#,
         mocktopus           = MOCKTOPUS_CRATE_NAME,
