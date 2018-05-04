@@ -2,7 +2,7 @@ use header_builder::FnHeaderBuilder;
 use syn::{ArgCaptured, Attribute, Block, FnArg, FnDecl, Ident, ImplItem, Item, ItemFn, ItemImpl, ItemMod, ItemTrait,
           MethodSig, Pat, PatIdent, TraitItem, TraitItemMethod};
 use syn::punctuated::Punctuated;
-use syn::token::{Comma, Const};
+use syn::token::{Comma, Const, Unsafe};
 
 pub fn inject_item(item: &mut Item) {
     match *item {
@@ -15,8 +15,8 @@ pub fn inject_item(item: &mut Item) {
 }
 
 fn inject_fn(item_fn: &mut ItemFn) {
-    inject_any_fn(&FnHeaderBuilder::StaticFn, &item_fn.attrs, &item_fn.constness, &item_fn.ident, &mut item_fn.decl,
-                  &mut *item_fn.block);
+    inject_any_fn(&FnHeaderBuilder::StaticFn, &item_fn.attrs, &item_fn.constness, &item_fn.unsafety, &item_fn.ident,
+                  &mut item_fn.decl, &mut *item_fn.block);
 }
 
 fn inject_mod(item_mod: &mut ItemMod) {
@@ -60,12 +60,12 @@ fn inject_impl(item_impl: &mut ItemImpl) {
 }
 
 fn inject_any_method(builder: &FnHeaderBuilder, attrs: &Vec<Attribute>, sig: &mut MethodSig, block: &mut Block) {
-    inject_any_fn(builder, attrs, &sig.constness, &sig.ident, &mut sig.decl, block)
+    inject_any_fn(builder, attrs, &sig.constness, &sig.unsafety, &sig.ident, &mut sig.decl, block)
 }
 
-fn inject_any_fn(builder: &FnHeaderBuilder, attrs: &Vec<Attribute>, constness: &Option<Const>, fn_name: &Ident,
-                 fn_decl: &mut FnDecl, block: &mut Block) {
-    if constness.is_some() || fn_decl.variadic.is_some() || is_not_mockable(attrs) {
+fn inject_any_fn(builder: &FnHeaderBuilder, attrs: &Vec<Attribute>, constness: &Option<Const>,
+                 unsafety: &Option<Unsafe>, fn_name: &Ident, fn_decl: &mut FnDecl, block: &mut Block) {
+    if constness.is_some() || unsafety.is_some() || fn_decl.variadic.is_some() || is_not_mockable(attrs) {
         return
     }
     unignore_fn_args(&mut fn_decl.inputs);

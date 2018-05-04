@@ -90,6 +90,7 @@ use quote::ToTokens;
 /// # Indifferent to annotate
 /// - already mockable items (inside annotated modules)
 /// - const functions (they are impossible to mock)
+/// - unsafe functions (they are impossible to mock)
 /// - any macro generated items (they are impossible to mock)
 /// - any other items
 #[proc_macro_attribute]

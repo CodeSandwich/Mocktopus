@@ -606,6 +606,42 @@ mod injector_ignores_const_fns {
     }
 }
 
+mod injector_ignores_unsafe_fns {
+    use super::*;
+
+    #[mockable]
+    unsafe fn function() -> &'static str {
+        "not mocked"
+    }
+
+    #[test]
+    fn when_not_mocked_then_runs_normally() {
+        assert_eq!("not mocked", unsafe { function() } );
+    }
+
+    // Trait Mockable is not implemented for unsafe functions
+}
+
+mod injector_ignores_unsafe_impls {
+    use super::*;
+
+    struct Struct;
+
+    #[mockable]
+    impl Struct {
+        unsafe fn function() -> &'static str {
+            "not mocked"
+        }
+    }
+
+    #[test]
+    fn when_not_mocked_then_runs_normally() {
+        assert_eq!("not mocked", unsafe { Struct::function() } );
+    }
+
+    // Trait Mockable is not implemented for unsafe functions
+}
+
 mod injector_does_not_inject_macro_generated_fns {
     use super::*;
 
