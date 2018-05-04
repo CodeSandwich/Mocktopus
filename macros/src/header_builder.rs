@@ -31,6 +31,7 @@ r#"{{
             || {mocktopus}::mocking::Mockable::call_mock(&{full_fn_name}, {extract_args}))) {{
         Ok({mocktopus}::mocking::MockResult::Continue({args_to_continue})) => {restore_args},
         Ok({mocktopus}::mocking::MockResult::Return(result)) => {{
+            {forget_args}
             let returned = unsafe {{ ::std::mem::transmute_copy(&result) }};
             ::std::mem::forget(result);
             return returned;

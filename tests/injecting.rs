@@ -680,7 +680,7 @@ mod injecting_trait_impl_where_fn_return_type_has_longer_lifetime_than_required_
     }
 
     #[test]
-    fn when_not_mocked_then_returns_mock() {
+    fn when_mocked_then_returns_mock() {
         Struct::function.mock_safe(|_| MockResult::Return("mocked"));
 
         assert_eq!("mocked", Struct.function());
@@ -699,15 +699,56 @@ mod injecting_fn_with_generic_return_type {
         }
     }
 
-    #[test]
-    fn when_not_mocked_then_runs_normally() {
-        assert_eq!("not mocked", Struct("not mocked").function());
+    mod when_return_type_has_no_destructor {
+        use super::*;
+
+        #[test]
+        fn and_not_mocked_then_runs_normally() {
+            assert_eq!("not mocked", Struct("not mocked").function());
+        }
+
+        #[test]
+        fn and_mocked_then_returns_mock() {
+            Struct::function.mock_safe(|_| MockResult::Return("mocked"));
+
+            assert_eq!("mocked", Struct("not mocked").function());
+        }
+    }
+
+    mod when_return_type_has_destructor {
+        use super::*;
+
+        #[test]
+        fn and_not_mocked_then_runs_normally() {
+            assert_eq!(vec!["not mocked"], Struct(vec!["not mocked"]).function());
+        }
+
+        #[test]
+        fn and_mocked_then_returns_mock() {
+            Struct::function.mock_safe(|_| MockResult::Return(vec!["mocked"]));
+
+            assert_eq!(vec!["mocked"], Struct(vec!["not mocked"]).function());
+        }
+    }
+}
+
+mod injecting_fn_with_arg_requiring_drop {
+    use super::*;
+
+    #[mockable]
+    fn function(vec: Vec<&'static str>) -> &'static str {
+        vec[0]
     }
 
     #[test]
-    fn when_not_mocked_then_returns_mock() {
-        Struct::function.mock_safe(|_| MockResult::Return("mocked"));
+    fn when_not_mocked_then_runs_normally() {
+        assert_eq!("not mocked", function(vec!["not mocked"]));
+    }
 
-        assert_eq!("mocked", Struct("not mocked").function());
+    #[test]
+    fn when_mocked_then_returns_mock() {
+        function.mock_safe(|_| MockResult::Return("mocked"));
+
+        assert_eq!("mocked", function(vec!["not mocked"]));
     }
 }
