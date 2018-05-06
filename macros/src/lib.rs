@@ -14,7 +14,7 @@ mod item_injector;
 mod header_builder;
 mod lifetime_remover;
 
-use proc_macro::{Diagnostic, Level, Span, TokenStream};
+use proc_macro::{Span, TokenStream};
 use quote::ToTokens;
 
 /// Procedural macro, makes items and their sub-items mockable
