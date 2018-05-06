@@ -14,7 +14,7 @@ mod item_injector;
 mod header_builder;
 mod lifetime_remover;
 
-use proc_macro::TokenStream;
+use proc_macro::{Diagnostic, Level, Span, TokenStream};
 use quote::ToTokens;
 
 /// Procedural macro, makes items and their sub-items mockable
@@ -95,7 +95,16 @@ use quote::ToTokens;
 /// - any other items
 #[proc_macro_attribute]
 pub fn mockable(_: TokenStream, token_stream: TokenStream) -> TokenStream {
-    let mut item: syn::Item = syn::parse(token_stream).unwrap();
+    let mut item: syn::Item = match syn::parse(token_stream.clone()) {
+        Ok(item) => item,
+        Err(err) => {
+            Span::call_site()
+                .warning("Failed to make code mockable")
+                .error(format!("Failed to parse: {}", err))
+                .emit();
+            return token_stream;
+        }
+    };
     item_injector::inject_item(&mut item);
     item.into_tokens().into()
 }
