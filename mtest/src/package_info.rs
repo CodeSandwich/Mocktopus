@@ -3,10 +3,12 @@ use cargo::core::manifest::EitherManifest;
 use cargo::sources::PathSource;
 use cargo::util::Config;
 use cargo::util::toml;
-use cargo_metadata::Package;
+use cargo_metadata::{Package, Target};
 use package_kind::PackageKind;
 use std::collections::HashMap;
 use std::path::PathBuf;
+
+const TARGET_KIND_LIB: &str = "lib";
 
 pub struct PackageInfo {
     pub id: String,
@@ -25,6 +27,7 @@ impl PackageInfo {
             panic!("43");
         }
         let entry_points = package.targets.iter()
+            .filter(|target| is_entry_point_needed(target, kind))
             .map(|target| PathBuf::from(&target.src_path))
             .collect();
         PackageInfo {
@@ -35,6 +38,15 @@ impl PackageInfo {
             dep_names_to_ids,
             entry_points,
         }
+    }
+}
+
+fn is_entry_point_needed(target: &Target, kind: PackageKind) -> bool {
+    match kind {
+        PackageKind::Tested => true,
+        PackageKind::Dependency =>
+            target.kind.iter()
+                .any(|kind| kind == TARGET_KIND_LIB)
     }
 }
 
