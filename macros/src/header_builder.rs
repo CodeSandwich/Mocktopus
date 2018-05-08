@@ -8,6 +8,7 @@ use syn::punctuated::Punctuated;
 use syn::token::{Comma, Colon2, Semi};
 
 const MOCKTOPUS_CRATE_NAME:     &str = "__mocktopus_crate__";
+const STD_CRATE_NAME:           &str = "__mocktopus_std__";
 const ARGS_TO_CONTINUE_NAME:    &str = "__mocktopus_args_to_continue__";
 const UNWIND_DATA_NAME:         &str = "__mocktopus_unwind_data__";
 
@@ -27,22 +28,24 @@ impl<'a> FnHeaderBuilder<'a> {
         let header_str = format!(
 r#"{{
     extern crate mocktopus as {mocktopus};
-    match ::std::panic::catch_unwind(::std::panic::AssertUnwindSafe (
+    extern crate std as {std_crate};
+    match {std_crate}::panic::catch_unwind({std_crate}::panic::AssertUnwindSafe (
             || {mocktopus}::mocking::Mockable::call_mock(&{full_fn_name}, {extract_args}))) {{
         Ok({mocktopus}::mocking::MockResult::Continue({args_to_continue})) => {restore_args},
         Ok({mocktopus}::mocking::MockResult::Return(result)) => {{
             {forget_args}
-            let returned = unsafe {{ ::std::mem::transmute_copy(&result) }};
-            ::std::mem::forget(result);
+            let returned = unsafe {{ {std_crate}::mem::transmute_copy(&result) }};
+            {std_crate}::mem::forget(result);
             return returned;
         }},
         Err({unwind}) => {{
             {forget_args}
-            ::std::panic::resume_unwind({unwind});
+            {std_crate}::panic::resume_unwind({unwind});
         }},
     }}
 }}"#,
         mocktopus           = MOCKTOPUS_CRATE_NAME,
+        std_crate           = STD_CRATE_NAME,
         full_fn_name        = display(|f| write_full_fn_name(f, self, fn_ident)),
         extract_args        = display(|f| write_extract_args(f, fn_args)),
         args_to_continue    = ARGS_TO_CONTINUE_NAME,
@@ -103,8 +106,8 @@ fn write_extract_args<T>(f: &mut Formatter, fn_args: &Punctuated<FnArg, T>) -> R
     }
     write!(f, "unsafe {{ (")?;
     for fn_arg_name in iter_fn_arg_names(fn_args) {
-        write!(f, "::std::mem::replace({}::mocking_utils::as_mut(&{}), ::std::mem::uninitialized()), ",
-               MOCKTOPUS_CRATE_NAME, fn_arg_name)?;
+        write!(f, "{}::mem::replace({}::mocking_utils::as_mut(&{}), {}::mem::uninitialized()), ",
+               STD_CRATE_NAME, MOCKTOPUS_CRATE_NAME, fn_arg_name, STD_CRATE_NAME)?;
     }
     write!(f, ") }}")
 }
@@ -115,15 +118,15 @@ fn write_restore_args<T>(f: &mut Formatter, fn_args: &Punctuated<FnArg, T>) -> R
     }
     writeln!(f, "unsafe {{")?;
     for (fn_arg_index, fn_arg_name) in iter_fn_arg_names(fn_args).enumerate() {
-        writeln!(f, "::std::mem::replace({}::mocking_utils::as_mut(&{}), {}.{});",
-                 MOCKTOPUS_CRATE_NAME, fn_arg_name, ARGS_TO_CONTINUE_NAME, fn_arg_index)?;
+        writeln!(f, "{}::mem::replace({}::mocking_utils::as_mut(&{}), {}.{});",
+                 STD_CRATE_NAME, MOCKTOPUS_CRATE_NAME, fn_arg_name, ARGS_TO_CONTINUE_NAME, fn_arg_index)?;
     }
     writeln!(f, "}}")
 }
 
 fn write_forget_args<T>(f: &mut Formatter, fn_args: &Punctuated<FnArg, T>) -> Result<(), Error> {
     for fn_arg_name in iter_fn_arg_names(fn_args) {
-        writeln!(f, "::std::mem::forget({});", fn_arg_name)?;
+        writeln!(f, "{}::mem::forget({});", STD_CRATE_NAME, fn_arg_name)?;
     }
     Ok(())
 }
