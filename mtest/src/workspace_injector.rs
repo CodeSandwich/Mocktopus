@@ -53,7 +53,7 @@ fn replace_deps_with_mocks(package_manifest: &mut Manifest, workspace: &Workspac
 
 fn add_mocktopus_dep(package_manifest: &mut Manifest) {
     let dep_path = ["dependencies".to_string()];
-    let dep = Dependency::new("mocktopus").set_version("=0.3.3");
+    let dep = Dependency::new("mocktopus").set_git("https://github.com/CodeSandwich/Mocktopus.git");
     package_manifest.insert_into_table(&dep_path, &dep)
         .expect("10")
 }
