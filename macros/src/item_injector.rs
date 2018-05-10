@@ -69,7 +69,7 @@ fn inject_any_fn(builder: &FnHeaderBuilder, attrs: &Vec<Attribute>, constness: &
         return
     }
     unignore_fn_args(&mut fn_decl.inputs);
-    let header_stmt = builder.build(fn_name, &fn_decl.inputs, block.brace_token.0);
+    let header_stmt = builder.build(fn_name, fn_decl, block.brace_token.0);
     block.stmts.insert(0, header_stmt);
 }
 

@@ -3,9 +3,10 @@ use lifetime_remover::remove_lifetimes_from_path;
 use proc_macro2::{Group, Span, TokenTree};
 use quote::{ToTokens};
 use std::fmt::{Error, Formatter};
-use syn::{self, ArgCaptured, Block, Expr, ExprVerbatim, FnArg, Ident, Pat, PatIdent, PathSegment, Stmt};
+use syn::{self, ArgCaptured, Block, Expr, ExprVerbatim, FnArg, FnDecl, GenericParam, Ident, Pat, PatIdent, PathSegment,
+          Stmt};
 use syn::punctuated::Punctuated;
-use syn::token::{Comma, Colon2, Semi};
+use syn::token::{Colon2, Semi};
 
 const MOCKTOPUS_CRATE_NAME:     &str = "__mocktopus_crate__";
 const STD_CRATE_NAME:           &str = "__mocktopus_std__";
@@ -24,7 +25,8 @@ pub enum FnHeaderBuilder<'a> {
 }
 
 impl<'a> FnHeaderBuilder<'a> {
-    pub fn build(&self, fn_ident: &Ident, fn_args: &Punctuated<FnArg, Comma>, fn_block_span: Span) -> Stmt {
+    pub fn build(&self, fn_ident: &Ident, fn_decl: &FnDecl, fn_block_span: Span) -> Stmt {
+        let fn_args = &fn_decl.inputs;
         let header_str = format!(
 r#"{{
     extern crate mocktopus as {mocktopus};
@@ -46,7 +48,7 @@ r#"{{
 }}"#,
         mocktopus           = MOCKTOPUS_CRATE_NAME,
         std_crate           = STD_CRATE_NAME,
-        full_fn_name        = display(|f| write_full_fn_name(f, self, fn_ident)),
+        full_fn_name        = display(|f| write_full_fn_name(f, self, fn_ident, fn_decl)),
         extract_args        = display(|f| write_extract_args(f, fn_args)),
         args_to_continue    = ARGS_TO_CONTINUE_NAME,
         restore_args        = display(|f| write_restore_args(f, fn_args)),
@@ -84,20 +86,35 @@ fn make_token_tree_span_call_site(mut token_tree: TokenTree, span: Span) -> Toke
     token_tree
 }
 
-fn write_full_fn_name(f: &mut Formatter, builder: &FnHeaderBuilder, fn_ident: &Ident) -> Result<(), Error> {
+fn write_full_fn_name(f: &mut Formatter, builder: &FnHeaderBuilder, fn_ident: &Ident, fn_decl: &FnDecl)
+        -> Result<(), Error> {
     match *builder {
         FnHeaderBuilder::StaticFn               => (),
         FnHeaderBuilder::StructImpl |
         FnHeaderBuilder::TraitDefault           => write!(f, "Self::")?,
         FnHeaderBuilder::TraitImpl(ref path)    => write!(f, "<Self as {}>::", display(|f| write_trait_path(f, path)))?,
     }
-    write!(f, "{}", fn_ident.as_ref())
+    write!(f, "{}::<{}>", fn_ident.as_ref(), display(|f| write_fn_generics(f, fn_decl)))
 }
 
 fn write_trait_path<T: ToTokens + Clone>(f: &mut Formatter, trait_path: &Punctuated<PathSegment, T>) -> Result<(), Error> {
     let mut trait_path_without_lifetimes = trait_path.clone();
     remove_lifetimes_from_path(&mut trait_path_without_lifetimes);
     write!(f, "{}", trait_path_without_lifetimes.into_tokens())
+}
+
+fn write_fn_generics(f: &mut Formatter, fn_decl: &FnDecl) -> Result<(), Error> {
+    fn_decl.generics.params.iter()
+        .filter_map(get_generic_param_name)
+        .map(|param| write!(f, "{},", param))
+        .collect()
+}
+
+fn get_generic_param_name<'a>(param: &'a GenericParam) -> Option<&'a str> {
+    match *param {
+        GenericParam::Type(ref type_param) => Some(type_param.ident.as_ref()),
+        _ => None,
+    }
 }
 
 fn write_extract_args<T>(f: &mut Formatter, fn_args: &Punctuated<FnArg, T>) -> Result<(), Error> {

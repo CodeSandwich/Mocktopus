@@ -788,3 +788,105 @@ mod injecting_fn_with_arg_requiring_drop {
         assert_eq!("mocked", function(vec!["not mocked"]));
     }
 }
+
+mod injecting_fn_with_unused_generic_param {
+    use super::*;
+
+    #[mockable]
+    fn function<T>() -> &'static str {
+        "not mocked"
+    }
+
+    #[test]
+    fn when_not_mocked_then_runs_normally() {
+        assert_eq!("not mocked", function::<u8>());
+    }
+
+    #[test]
+    fn when_mocked_then_returns_mock() {
+        function::<u8>.mock_safe(|| MockResult::Return("mocked"));
+
+        assert_eq!("mocked", function::<u8>());
+    }
+}
+
+mod injecting_method_with_unused_generic_param {
+    use super::*;
+
+    struct Struct;
+
+    #[mockable]
+    impl Struct {
+        fn method<T>() -> &'static str {
+            "not mocked"
+        }
+    }
+
+    #[test]
+    fn when_not_mocked_then_runs_normally() {
+        assert_eq!("not mocked", Struct::method::<u8>());
+    }
+
+    #[test]
+    fn when_mocked_then_returns_mock() {
+        Struct::method::<u8>.mock_safe(|| MockResult::Return("mocked"));
+
+        assert_eq!("mocked", Struct::method::<u8>());
+    }
+}
+
+mod injecting_trait_method_with_unused_generic_param {
+    use super::*;
+
+    trait Trait {
+        fn method<T>() -> &'static str;
+    }
+
+    struct Struct;
+
+    #[mockable]
+    impl Trait for Struct {
+        fn method<T>() -> &'static str {
+            "not mocked"
+        }
+    }
+
+    #[test]
+    fn when_not_mocked_then_runs_normally() {
+        assert_eq!("not mocked", Struct::method::<u8>());
+    }
+
+    #[test]
+    fn when_mocked_then_returns_mock() {
+        Struct::method::<u8>.mock_safe(|| MockResult::Return("mocked"));
+
+        assert_eq!("mocked", Struct::method::<u8>());
+    }
+}
+
+mod injecting_trait_default_method_with_unused_generic_param {
+    use super::*;
+
+    #[mockable]
+    trait Trait {
+        fn method<T>() -> &'static str {
+            "not mocked"
+        }
+    }
+
+    struct Struct;
+
+    impl Trait for Struct {}
+
+    #[test]
+    fn when_not_mocked_then_runs_normally() {
+        assert_eq!("not mocked", Struct::method::<u8>());
+    }
+
+    #[test]
+    fn when_mocked_then_returns_mock() {
+        Struct::method::<u8>.mock_safe(|| MockResult::Return("mocked"));
+
+        assert_eq!("mocked", Struct::method::<u8>());
+    }
+}
