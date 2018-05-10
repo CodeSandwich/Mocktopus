@@ -1,6 +1,6 @@
 use header_builder::FnHeaderBuilder;
-use syn::{ArgCaptured, Attribute, Block, FnArg, FnDecl, Ident, ImplItem, Item, ItemFn, ItemImpl, ItemMod, ItemTrait,
-          MethodSig, Pat, PatIdent, TraitItem, TraitItemMethod};
+use syn::{ArgCaptured, Attribute, Block, FnArg, FnDecl, Ident, ImplItem, ImplItemMethod, Item, ItemFn, ItemImpl,
+          ItemMod, ItemTrait, MethodSig, Pat, PatIdent, TraitItem, TraitItemMethod};
 use syn::punctuated::Punctuated;
 use syn::token::{Comma, Const, Unsafe};
 
@@ -54,10 +54,27 @@ fn inject_impl(item_impl: &mut ItemImpl) {
     };
     for impl_item in &mut item_impl.items {
         if let ImplItem::Method(ref mut item_method) = *impl_item {
-            inject_any_method(&builder, &item_method.attrs, &mut item_method.sig, &mut item_method.block);
+            if is_impl_fn_mockabile(&builder, item_method) {
+                inject_any_method(&builder, &item_method.attrs, &mut item_method.sig, &mut item_method.block);
+            }
         }
     }
 }
+
+fn is_impl_fn_mockabile(builder: &FnHeaderBuilder, item_method: &ImplItemMethod) -> bool {
+    if let FnHeaderBuilder::TraitImpl(ref segments) = *builder {
+        if let Some(pair) = segments.last() {
+            let segment = pair.value();
+            if segment.arguments.is_empty() && segment.ident.as_ref() == "Drop" {
+                if item_method.sig.ident.as_ref() == "drop" {
+                    return false
+                }
+            }
+        }
+    }
+    true
+}
+
 
 fn inject_any_method(builder: &FnHeaderBuilder, attrs: &Vec<Attribute>, sig: &mut MethodSig, block: &mut Block) {
     inject_any_fn(builder, attrs, &sig.constness, &sig.unsafety, &sig.ident, &mut sig.decl, block)

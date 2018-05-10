@@ -1,4 +1,4 @@
-#![feature(const_fn, proc_macro, proc_macro_mod)]
+#![feature(const_fn, proc_macro, proc_macro_mod, fn_traits)]
 
 // Test if injecting works even if mocktopus is aliased
 extern crate mocktopus as mocktopus_aliased;
@@ -888,5 +888,32 @@ mod injecting_trait_default_method_with_unused_generic_param {
         Struct::method::<u8>.mock_safe(|| MockResult::Return("mocked"));
 
         assert_eq!("mocked", Struct::method::<u8>());
+    }
+}
+
+mod injecting_structs_with_drop_does_nothing {
+    use super::*;
+    use std::mem::drop;
+
+    static mut DROPPED: &str = "not dropped";
+
+    struct Struct;
+
+    #[mockable]
+    impl Drop for Struct {
+        fn drop(&mut self) {
+            unsafe {
+                DROPPED = "dropped"
+            }
+        }
+    }
+
+    #[test]
+    fn when_not_mocked_then_runs_normally() {
+        assert_eq!("not dropped", unsafe { DROPPED });
+
+        drop(Struct);
+
+        assert_eq!("dropped", unsafe { DROPPED });
     }
 }
