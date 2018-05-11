@@ -917,3 +917,32 @@ mod injecting_structs_with_drop_does_nothing {
         assert_eq!("dropped", unsafe { DROPPED });
     }
 }
+
+mod injecting_lifetimed_fn_of_same_lifetimed_trait_impl_of_same_lifetimed_struct_where_lifetime_on_fn_is_absent {
+    use super::*;
+
+    trait Trait<'a> {
+        fn function(arg: &'a str) -> &'a str;
+    }
+
+    struct Struct<'a>(&'a str);
+
+    #[mockable]
+    impl<'a> Trait<'a> for Struct<'a> {
+        fn function(arg: &str) -> &str {
+            arg
+        }
+    }
+
+    #[test]
+    fn when_not_mocked_then_runs_normally() {
+        assert_eq!("not mocked", Struct::function("not mocked"));
+    }
+
+    #[test]
+    fn when_mocked_then_returns_mock() {
+        Struct::function.mock_safe(|_| MockResult::Return("mocked"));
+
+        assert_eq!("mocked", Struct::function("not mocked"));
+    }
+}
