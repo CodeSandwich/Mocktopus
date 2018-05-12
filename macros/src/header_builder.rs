@@ -135,8 +135,8 @@ fn write_restore_args<T>(f: &mut Formatter, fn_args: &Punctuated<FnArg, T>) -> R
     }
     writeln!(f, "unsafe {{")?;
     for (fn_arg_index, fn_arg_name) in iter_fn_arg_names(fn_args).enumerate() {
-        writeln!(f, "{}::mem::replace({}::mocking_utils::as_mut(&{}), {}.{});",
-                 STD_CRATE_NAME, MOCKTOPUS_CRATE_NAME, fn_arg_name, ARGS_TO_CONTINUE_NAME, fn_arg_index)?;
+        writeln!(f, "{}::mem::forget({}::mem::replace({}::mocking_utils::as_mut(&{}), {}.{}));",
+            STD_CRATE_NAME, STD_CRATE_NAME, MOCKTOPUS_CRATE_NAME, fn_arg_name, ARGS_TO_CONTINUE_NAME, fn_arg_index)?;
     }
     writeln!(f, "}}")
 }
