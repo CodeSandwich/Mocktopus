@@ -174,3 +174,32 @@ mod mocking_trait_default_for_struct_does_not_mock_same_default_for_another_stru
         assert_eq!("not mocked", Struct2::function());
     }
 }
+
+mod mock_closures_can_mutate_their_state {
+    use super::*;
+
+    #[mockable]
+    fn function() -> &'static str {
+        "not mocked"
+    }
+
+    #[test]
+    fn when_not_mocked_then_runs_normally() {
+        assert_eq!("not mocked", function());
+    }
+
+    #[test]
+    fn when_mocked_then_runs_mocks_with_state() {
+        let mut x = 0;
+        function.mock_safe(move || {
+            x += 1;
+            match x {
+                1 => MockResult::Return("first mock"),
+                _ => MockResult::Return("other mock"),
+            }
+        });
+
+        assert_eq!("first mock", function());
+        assert_eq!("other mock", function());
+    }
+}

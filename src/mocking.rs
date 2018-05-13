@@ -41,7 +41,7 @@ pub trait Mockable<T, O> {
     ///     assert_eq!("mocked", get_string(&Context::default()));
     /// }
     /// ```
-    unsafe fn mock_raw<M: Fn<T, Output=MockResult<T, O>>>(&self, mock: M);
+    unsafe fn mock_raw<M: FnMut<T, Output=MockResult<T, O>>>(&self, mock: M);
 
     /// A safe variant of [mock_raw](#tymethod.mock_raw) for static closures
     ///
@@ -61,7 +61,7 @@ pub trait Mockable<T, O> {
     ///     assert_eq!("mocked", get_string());
     /// }
     /// ```
-    fn mock_safe<M: Fn<T, Output=MockResult<T, O>> + 'static>(&self, mock: M);
+    fn mock_safe<M: FnMut<T, Output=MockResult<T, O>> + 'static>(&self, mock: M);
 
     #[doc(hidden)]
     /// Called before every execution of a mockable function. Checks if mock is set and if it is, calls it.
@@ -83,21 +83,21 @@ pub enum MockResult<T, O> {
 }
 
 thread_local!{
-    static MOCK_STORE: RefCell<HashMap<TypeId, Box<Fn<(), Output=()>>>> = RefCell::new(HashMap::new())
+    static MOCK_STORE: RefCell<HashMap<TypeId, Box<FnMut<(), Output=()>>>> = RefCell::new(HashMap::new())
 }
 
 impl<T, O, F: FnOnce<T, Output=O>> Mockable<T, O> for F {
-    unsafe fn mock_raw<M: Fn<T, Output=MockResult<T, O>>>(&self, mock: M) {
+    unsafe fn mock_raw<M: FnMut<T, Output=MockResult<T, O>>>(&self, mock: M) {
         let id = self.get_mock_id();
         MOCK_STORE.with(|mock_ref_cell| {
-            let fn_box: Box<Fn<T, Output=MockResult<T, O>>> = Box::new(mock);
-            let stored: Box<Fn<(), Output=()>> = transmute(fn_box);
+            let fn_box: Box<FnMut<T, Output=MockResult<T, O>>> = Box::new(mock);
+            let stored: Box<FnMut<(), Output=()>> = transmute(fn_box);
             let mock_map = &mut*mock_ref_cell.borrow_mut();
             mock_map.insert(id, stored);
         })
     }
 
-    fn mock_safe<M: Fn<T, Output=MockResult<T, O>> + 'static>(&self, mock: M) {
+    fn mock_safe<M: FnMut<T, Output=MockResult<T, O>> + 'static>(&self, mock: M) {
         unsafe {
             self.mock_raw(mock)
         }
@@ -107,12 +107,12 @@ impl<T, O, F: FnOnce<T, Output=O>> Mockable<T, O> for F {
         unsafe {
             let id = self.get_mock_id();
             MOCK_STORE.with(|mock_ref_cell| {
-                let mock_map = &*mock_ref_cell.borrow();
-                match mock_map.get(&id) {
+                let mock_map = &mut*mock_ref_cell.borrow_mut();
+                match mock_map.get_mut(&id) {
                     Some(stored_box) => {
-                        let stored = &**stored_box;
-                        let mock: &Fn<T, Output=MockResult<T, O>> = transmute(stored);
-                        mock.call(input)
+                        let stored = &mut**stored_box;
+                        let mock: &mut FnMut<T, Output=MockResult<T, O>> = transmute(stored);
+                        mock.call_mut(input)
                     },
                     None => MockResult::Continue(input),
                 }
