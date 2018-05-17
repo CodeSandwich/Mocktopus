@@ -1,3 +1,5 @@
+#![feature(proc_macro)]
+
 extern crate cargo;
 extern crate cargo_edit;
 extern crate cargo_metadata;

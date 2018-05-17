@@ -72,7 +72,7 @@ fn inject_entry_points(workspace: &WorkspaceCopy, package_copy: &PackageCopy) {
         .for_each(inject_entry_point);
 }
 fn inject_entry_point(entry_point: &PathBuf) {
-    println!("For file {:?}", entry_point);
+    println!("Injecting file {:?}", entry_point);
     let mut file = OpenOptions::new()
         .read(true)
         .write(true)
@@ -81,11 +81,14 @@ fn inject_entry_point(entry_point: &PathBuf) {
     let mut content = String::new();
     file.read_to_string(&mut content)
         .expect("47");
+    let injections = match get_injections(&content) {
+        Ok(injections) => injections,
+        Err(()) => return,
+    };
     file.seek(SeekFrom::Start(0))
         .expect("48");
     file.set_len(0)
         .expect("50");
-    let injections = get_injections(&content);
     write_source_with_injections(&content, &mut file, injections);
 }
 
@@ -94,33 +97,18 @@ use self::proc_macro2::{LineColumn, TokenStream};
 use std::iter::{once, repeat};
 use std::fs::File as FsFile;
 use syn::{Item, parse2, Visibility};
+extern crate proc_macro;
+use self::proc_macro::{Diagnostic, Level};
 
-//fn write_injected_file_content(content: String) -> String {
-//    let token_stream = content.parse().expect("55");
-//    let mut file: File = parse2(token_stream).expect("56");
-//
-//    let injection_points = file.items.iter()
-//        .filter_map(get_item_injection_point)
-//        .collect::<Vec<_>>();
-//
-//    for line_column in injection_points {
-//        println!("Inject line {:3} column {}", line_column.line, line_column.column);
-//    }
-//
-//
-////    let attr_file: File = parse_str("#![feature(proc_macro)]")
-////        .expect("51");
-////    file.attrs.extend(attr_file.attrs);
-//    file.into_tokens()
-//        .into_iter()
-//        .collect::<TokenStream>()
-//        .to_string();
-//    content
-//}
-
-fn get_injections(file_content: &str) -> Vec<(LineColumn, &'static str)> {
-    let token_stream = file_content.parse().expect("55");
-    let mut file: File = parse2(token_stream).expect("56");
+fn get_injections(file_content: &str) -> Result<Vec<(LineColumn, &'static str)>, ()> {
+    let mut file = match parse_file_content(file_content) {
+        Ok(file) => file,
+        Err(error) => {
+            Diagnostic::new(Level::Warning, format!("Failed to mock crate: {}", error))
+                .emit();
+            return Err(())
+        },
+    };
     let mod_injection_points = file.items.iter()
         .filter_map(get_mod_injection_point)
         .zip(repeat("#[extern::mocktopus::macros::mockable]"));
@@ -128,10 +116,16 @@ fn get_injections(file_content: &str) -> Vec<(LineColumn, &'static str)> {
         LineColumn { line: 1, column: 0 },
         "#![feature(proc_macro, proc_macro_mod, extern_in_paths, proc_macro_path_invoc)]"
     );
-    once(feature_injection_point)
+    Ok(once(feature_injection_point)
         .chain(mod_injection_points)
-        .collect()
+        .collect())
+}
 
+fn parse_file_content(file_content: &str) -> Result<File, String> {
+    let token_stream = file_content.parse()
+        .map_err(|e| format!("{:?}", e))?;
+    parse2(token_stream)
+        .map_err(|e| e.to_string())
 }
 
 fn get_mod_injection_point(item: &Item) -> Option<LineColumn> {
@@ -177,45 +171,3 @@ fn write_source_with_injections(source: &str, sink: &mut FsFile, injections: Vec
         }
     }
 }
-
-//struct SourceWriter<'a> {
-//    lines: &'a str,
-//    line_col: usize,
-//    line_byte: usize,
-//}
-//
-//impl<'a> SourceWriter<'a> {
-//    fn new(source: &'a str) -> Self {
-//        let lines = (1..)
-//            .zip(source.lines())
-//            .peekable();
-//        SourceWriter {
-//            lines,
-//            line_col: 0,
-//            line_byte: 0,
-//        }
-//    }
-//
-//    fn write_until(&mut self, sink: &mut File, line_column: LineColumn) {
-//        let (line_num, line) = self.lines.peek().expect("63");
-//        if line_column.line < line_num {
-//            panic!("64");
-//        } else if line_column.line > line_num {
-//            write!(sink, "{}", line.get())
-//        }
-//
-//    }
-//
-//    fn write_until_end(mut self, sink: &mut File) {
-//        match self.lines.next() {
-//            Some(line)  => writeln!(sink, "{}", line.get(self.line_byte..).expect("60")).expect("61"),
-//            None        => return,
-//        }
-//        for line in self.lines {
-//            writeln!(sink, "{}", line).expect("62")
-//        }
-//    }
-//}
-
-//col is first character of token 0-indexed
-//line is 1-indexed
