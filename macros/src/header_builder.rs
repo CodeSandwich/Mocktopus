@@ -61,7 +61,7 @@ r#"{{
 }
 
 fn create_call_site_spanned_stmt(block: Block, span: Span) -> Stmt {
-    let token_stream = block.into_tokens()
+    let token_stream = block.into_token_stream()
         .into_iter()
         .map(|tt| make_token_tree_span_call_site(tt, span))
         .collect();
@@ -94,13 +94,13 @@ fn write_full_fn_name(f: &mut Formatter, builder: &FnHeaderBuilder, fn_ident: &I
         FnHeaderBuilder::TraitDefault           => write!(f, "Self::")?,
         FnHeaderBuilder::TraitImpl(ref path)    => write!(f, "<Self as {}>::", display(|f| write_trait_path(f, path)))?,
     }
-    write!(f, "{}::<{}>", fn_ident.as_ref(), display(|f| write_fn_generics(f, fn_decl)))
+    write!(f, "{}::<{}>", fn_ident, display(|f| write_fn_generics(f, fn_decl)))
 }
 
 fn write_trait_path<T: ToTokens + Clone>(f: &mut Formatter, trait_path: &Punctuated<PathSegment, T>) -> Result<(), Error> {
     let mut trait_path_without_lifetimes = trait_path.clone();
     remove_lifetimes_from_path(&mut trait_path_without_lifetimes);
-    write!(f, "{}", trait_path_without_lifetimes.into_tokens())
+    write!(f, "{}", trait_path_without_lifetimes.into_token_stream())
 }
 
 fn write_fn_generics(f: &mut Formatter, fn_decl: &FnDecl) -> Result<(), Error> {
@@ -110,9 +110,9 @@ fn write_fn_generics(f: &mut Formatter, fn_decl: &FnDecl) -> Result<(), Error> {
         .collect()
 }
 
-fn get_generic_param_name<'a>(param: &'a GenericParam) -> Option<&'a str> {
+fn get_generic_param_name(param: &GenericParam) -> Option<String> {
     match *param {
-        GenericParam::Type(ref type_param) => Some(type_param.ident.as_ref()),
+        GenericParam::Type(ref type_param) => Some(type_param.ident.to_string()),
         _ => None,
     }
 }
@@ -148,10 +148,10 @@ fn write_forget_args<T>(f: &mut Formatter, fn_args: &Punctuated<FnArg, T>) -> Re
     Ok(())
 }
 
-fn iter_fn_arg_names<'a, T>(input_args: &'a Punctuated<FnArg, T>) -> impl Iterator<Item = &'a str> {
+fn iter_fn_arg_names<'a, T>(input_args: &'a Punctuated<FnArg, T>) -> impl Iterator<Item = String> + 'a {
     input_args.iter()
         .map(|fn_arg| match *fn_arg {
-            FnArg::SelfRef(_) | FnArg::SelfValue(_) => "self",
+            FnArg::SelfRef(_) | FnArg::SelfValue(_) => "self".to_string(),
             FnArg::Captured(
                 ArgCaptured {
                     pat: Pat::Ident(
@@ -163,7 +163,7 @@ fn iter_fn_arg_names<'a, T>(input_args: &'a Punctuated<FnArg, T>) -> impl Iterat
                     ),
                     ..
                 }
-            ) => ident.as_ref(),
-            _ => panic!("{}: '{}'", error_msg!("invalid fn arg type"), fn_arg.clone().into_tokens()),
+            ) => ident.to_string(),
+            _ => panic!("{}: '{}'", error_msg!("invalid fn arg type"), fn_arg.clone().into_token_stream()),
         })
 }

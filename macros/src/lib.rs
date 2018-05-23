@@ -106,7 +106,7 @@ pub fn mockable(_: TokenStream, token_stream: TokenStream) -> TokenStream {
         }
     };
     item_injector::inject_item(&mut item);
-    item.into_tokens().into()
+    item.into_token_stream().into()
 }
 
 /// Procedural macro, guards items from being made mockable by enclosing item.

@@ -147,7 +147,7 @@ mod tests {
 
             remove_lifetimes_from_path(&mut path.segments);
 
-            let actual = path.into_tokens().to_string().replace(" ", "");
+            let actual = path.into_token_stream().to_string().replace(" ", "");
             assert_eq!(expected, actual, "{}", test_name);
         }
 

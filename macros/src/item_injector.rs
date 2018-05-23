@@ -65,8 +65,8 @@ fn is_impl_fn_mockabile(builder: &FnHeaderBuilder, item_method: &ImplItemMethod)
     if let FnHeaderBuilder::TraitImpl(ref segments) = *builder {
         if let Some(pair) = segments.last() {
             let segment = pair.value();
-            if segment.arguments.is_empty() && segment.ident.as_ref() == "Drop" {
-                if item_method.sig.ident.as_ref() == "drop" {
+            if segment.arguments.is_empty() && segment.ident == "Drop" {
+                if item_method.sig.ident == "drop" {
                     return false
                 }
             }
@@ -119,6 +119,6 @@ const INJECTOR_STOPPER_ATTRS: [&str; 2] = ["mockable", "not_mockable"];
 fn is_not_mockable(attrs: &Vec<Attribute>) -> bool {
     attrs.iter()
         .filter_map(|a| a.path.segments.last())
-        .map(|s| s.value().ident.as_ref())
-        .any(|i| INJECTOR_STOPPER_ATTRS.contains(&i))
+        .map(|s| s.value().ident.to_string())
+        .any(|i| INJECTOR_STOPPER_ATTRS.contains(&&*i))
 }
