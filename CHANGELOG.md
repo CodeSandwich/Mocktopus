@@ -1,3 +1,5 @@
+### 0.4.1
+- Fix tests for rustc 1.29.0-nightly (254f8796b 2018-07-13) and newer
 ### 0.4.0
 - Port to rustc 1.28.0-nightly (71e87be38 2018-05-22) and newer
 ### 0.3.8
