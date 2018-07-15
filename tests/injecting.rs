@@ -125,6 +125,8 @@ mod injector_injects_annotated_items {
 
         #[mockable]
         mod module {
+            use super::*;
+
             impl Struct {
                 pub fn function() -> &'static str {
                     "not mocked"
@@ -345,6 +347,8 @@ mod injector_does_not_inject_items_twice {
 
         #[mockable]
         mod mocked_mod {
+            use super::*;
+
             #[mockable]
             pub fn mocked_fn(x: u32) -> u32 {
                 x * 2
@@ -373,6 +377,8 @@ mod injector_does_not_inject_items_twice {
 
         #[mockable]
         mod mocked_mod {
+            use super::*;
+
             #[mockable]
             impl MockedStruct {
                 pub fn mocked_fn(x: u32) -> u32 {
@@ -402,6 +408,8 @@ mod injector_does_not_inject_items_twice {
 
         #[mockable]
         mod mocked_mod {
+            use super::*;
+
             #[mockable]
             pub trait MockedTrait {
                 fn mocked_fn(x: u32) -> u32 {
@@ -436,6 +444,8 @@ mod injector_does_not_inject_items_twice {
 
         #[mockable]
         mod mocked_mod {
+            use super::*;
+
             #[mockable]
             pub mod mocked_mod {
                 pub fn mocked_fn(x: u32) -> u32 {
@@ -468,6 +478,8 @@ mod injector_does_not_inject_not_mockable_items {
 
         #[mockable]
         mod mocked_mod {
+            use super::*;
+
             #[not_mockable]
             pub fn not_mocked_fn() -> &'static str {
                 "not mocked"
@@ -496,6 +508,8 @@ mod injector_does_not_inject_not_mockable_items {
 
         #[mockable]
         mod mocked_mod {
+            use super::*;
+
             #[not_mockable]
             impl MockedStruct {
                 pub fn not_mocked_fn() -> &'static str {
@@ -525,6 +539,8 @@ mod injector_does_not_inject_not_mockable_items {
 
         #[mockable]
         mod mocked_mod {
+            use super::*;
+
             #[not_mockable]
             pub trait MockedTrait {
                 fn not_mocked_fn() -> &'static str {
@@ -559,6 +575,8 @@ mod injector_does_not_inject_not_mockable_items {
 
         #[mockable]
         mod mocked_mod {
+            use super::*;
+
             #[not_mockable]
             pub mod mocked_mod {
                 pub fn not_mocked_fn() -> &'static str {
