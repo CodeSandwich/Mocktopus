@@ -1,4 +1,4 @@
-#![feature(const_fn, proc_macro)]
+#![feature(use_extern_macros)]
 
 extern crate mocktopus;
 

@@ -1,4 +1,4 @@
-#![feature(const_fn, proc_macro, proc_macro_gen, proc_macro_mod, fn_traits)]
+#![feature(const_fn, proc_macro_gen, proc_macro_mod, use_extern_macros)]
 
 // Test if injecting works even if mocktopus is aliased
 extern crate mocktopus as mocktopus_aliased;
