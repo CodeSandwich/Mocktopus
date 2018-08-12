@@ -6,7 +6,7 @@
   <img src="https://raw.githubusercontent.com/CodeSandwich/mocktopus/master/logo.png" alt="logo"/>
 </p>
 
-Mocking framework for Rust (currently only nightly). See [documentation](https://docs.rs/mocktopus) for more.
+Mocking framework for Rust (currently only nightly). See [documentation](https://docs.rs/crate/mocktopus) for more.
 
 ```rust
 #[mockable]
