@@ -1,4 +1,4 @@
-#![feature(fn_traits, get_type_id, unboxed_closures, use_extern_macros)]
+#![feature(fn_traits, get_type_id, unboxed_closures)]
 
 //! Mocking framework for Rust (currently only nightly)
 //!
@@ -38,7 +38,7 @@
 //! Enable procedural macros in crate root:
 //!
 //! ```
-//! #![cfg_attr(test, feature(proc_macro_mod, use_extern_macros))]
+//! #![cfg_attr(test, feature(proc_macro_mod))]
 //! ```
 //! Import Mocktopus:
 //!

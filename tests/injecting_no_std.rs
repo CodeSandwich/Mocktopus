@@ -1,4 +1,3 @@
-#![feature(use_extern_macros)]
 #![no_std]
 
 extern crate mocktopus;
