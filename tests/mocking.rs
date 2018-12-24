@@ -203,3 +203,26 @@ mod mock_closures_can_mutate_their_state {
         assert_eq!("other mock", function());
     }
 }
+
+mod multiple_mocks_can_be_defined {
+    use super::*;
+
+    #[mockable]
+    fn function() -> &'static str {
+        "not mocked"
+    }
+
+    #[test]
+    fn when_not_mocked_then_runs_normally() {
+        assert_eq!("not mocked", function());
+    }
+
+    #[test]
+    fn when_mocked_then_runs_mocks_with_state() {
+        function.mock_safe(|| MockResult::Return("first mock"));
+        function.mock_safe(|| MockResult::Return("other mock"));
+
+        assert_eq!("first mock", function());
+        assert_eq!("other mock", function());
+    }
+}

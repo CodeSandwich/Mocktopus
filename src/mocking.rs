@@ -1,6 +1,7 @@
 use std::any::{Any, TypeId};
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::collections::VecDeque;
 use std::mem::transmute;
 
 /// Trait for setting up mocks
@@ -83,7 +84,7 @@ pub enum MockResult<T, O> {
 }
 
 thread_local!{
-    static MOCK_STORE: RefCell<HashMap<TypeId, Box<FnMut<(), Output=()>>>> = RefCell::new(HashMap::new())
+    static MOCK_STORE: RefCell<HashMap<TypeId, VecDeque<Box<FnMut<(), Output=()>>>>> = RefCell::new(HashMap::new())
 }
 
 impl<T, O, F: FnOnce<T, Output=O>> Mockable<T, O> for F {
@@ -93,7 +94,14 @@ impl<T, O, F: FnOnce<T, Output=O>> Mockable<T, O> for F {
             let fn_box: Box<FnMut<T, Output=MockResult<T, O>>> = Box::new(mock);
             let stored: Box<FnMut<(), Output=()>> = transmute(fn_box);
             let mock_map = &mut*mock_ref_cell.borrow_mut();
-            mock_map.insert(id, stored);
+
+            if !mock_map.contains_key(&id) {
+                mock_map.insert(id, VecDeque::new());
+            }
+
+            let queue = mock_map.get_mut(&id).unwrap();
+
+            queue.push_back(stored);
         })
     }
 
@@ -109,10 +117,12 @@ impl<T, O, F: FnOnce<T, Output=O>> Mockable<T, O> for F {
             MOCK_STORE.with(|mock_ref_cell| {
                 let mock_map = &mut*mock_ref_cell.borrow_mut();
                 match mock_map.get_mut(&id) {
-                    Some(stored_box) => {
-                        let stored = &mut**stored_box;
-                        let mock: &mut FnMut<T, Output=MockResult<T, O>> = transmute(stored);
-                        mock.call_mut(input)
+                    Some(queue) => match queue.pop_front() {
+                        Some(stored_box) => {
+                            let mock: &mut FnMut<T, Output=MockResult<T, O>> = transmute(stored_box);
+                            mock.call_mut(input)
+                        }
+                        None => MockResult::Continue(input),
                     },
                     None => MockResult::Continue(input),
                 }
