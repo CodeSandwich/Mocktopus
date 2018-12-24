@@ -38,7 +38,7 @@
 //! Enable procedural macros in crate root:
 //!
 //! ```
-//! #![cfg_attr(test, feature(proc_macro_mod))]
+//! #![cfg_attr(test, feature(proc_macro_hygiene))]
 //! ```
 //! Import Mocktopus:
 //!
