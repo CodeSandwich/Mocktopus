@@ -1,4 +1,4 @@
-#![feature(fn_traits, get_type_id, unboxed_closures, use_extern_macros)]
+#![feature(fn_traits, unboxed_closures, use_extern_macros)]
 
 //! Mocking framework for Rust (currently only nightly)
 //!

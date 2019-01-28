@@ -121,6 +121,6 @@ impl<T, O, F: FnOnce<T, Output=O>> Mockable<T, O> for F {
     }
 
     unsafe fn get_mock_id(&self) -> TypeId {
-        (||()).get_type_id()
+        (||()).type_id()
     }
 }
