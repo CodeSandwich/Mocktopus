@@ -1,5 +1,3 @@
-#![feature(use_extern_macros)]
-
 extern crate mocktopus;
 
 mod mocking_fns;
