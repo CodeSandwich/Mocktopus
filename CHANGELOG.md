@@ -1,3 +1,5 @@
+## 0.6.0 - 2019-09-02
+- Fix for rustc 1.31.0-nightly (ad6e5c003 2018-09-28) and newer (thank you @asomers and @rye!)
 ## 0.5.0 - 2018-07-17
 - Fix for rustc 1.29.0-nightly (1ecf6929d 2018-07-16) and newer
 ## 0.4.1 - 2018-07-15
