@@ -201,3 +201,116 @@ mod mock_closures_can_mutate_their_state {
         assert_eq!("other mock", function());
     }
 }
+
+mod calling_mocked_function_inside_mock_closure {
+    use super::*;
+
+    #[mockable]
+    fn mockable_1() -> String {
+        "not mocked 1".to_string()
+    }
+
+    #[mockable]
+    fn mockable_2() -> String {
+        "not mocked 2".to_string()
+    }
+
+    fn not_mockable() -> String {
+        "not mockable".to_string()
+    }
+
+    #[test]
+    fn when_calling_itself_then_does_not_run_mock() {
+        let mut first_call = true;
+        mockable_1.mock_safe(move || {
+            match first_call {
+                true => {
+                    first_call = false;
+                    MockResult::Return(format!("mocked 1 {}", mockable_1()))
+                },
+                false => panic!("Mock called second time"),
+            }
+        });
+
+        assert_eq!("mocked 1 not mocked 1", mockable_1());
+    }
+
+    #[test]
+    fn when_calling_not_mocked_function_then_runs_it_normally() {
+        mockable_1.mock_safe(|| MockResult::Return(format!("mocked 1 {}", mockable_2())));
+
+        assert_eq!("mocked 1 not mocked 2", mockable_1());
+    }
+
+    #[test]
+    fn when_calling_mocked_function_then_runs_its_mock() {
+        mockable_1.mock_safe(|| MockResult::Return(format!("mocked 1 {}", mockable_2())));
+        mockable_2.mock_safe(|| MockResult::Return("mocked 2".to_string()));
+
+        assert_eq!("mocked 1 mocked 2", mockable_1());
+    }
+
+    #[test]
+    fn when_calling_not_mockable_function_then_runs_it_normally() {
+        mockable_1.mock_safe(|| MockResult::Return(format!("mocked 1 {}", not_mockable())));
+
+        assert_eq!("mocked 1 not mockable", mockable_1());
+    }
+}
+
+mod creating_mock_inside_mock_closure {
+    use super::*;
+
+    #[mockable]
+    fn mockable_1() -> String {
+        "not mocked 1".to_string()
+    }
+
+    #[mockable]
+    fn mockable_2() -> String {
+        "not mocked 2".to_string()
+    }
+
+    #[test]
+    fn when_creating_mock_of_itself_then_registers_mock() {
+        mockable_1.mock_safe(|| {
+            mockable_1.mock_safe(|| MockResult::Return("mocked 1B".to_string()));
+            MockResult::Return("mocked 1A".to_string())
+        });
+
+        assert_eq!("mocked 1A", mockable_1());
+        assert_eq!("mocked 1B", mockable_1());
+    }
+
+    #[test]
+    fn when_creating_mock_of_itself_and_calling_itself_then_runs_new_mock() {
+        mockable_1.mock_safe(|| {
+            mockable_1.mock_safe(|| MockResult::Return("mocked 1B".to_string()));
+            MockResult::Return(format!("mocked 1A {}", mockable_1()))
+        });
+
+        assert_eq!("mocked 1A mocked 1B", mockable_1());
+    }
+
+    #[test]
+    fn when_creating_mock_of_other_function_then_registers_mock() {
+        mockable_1.mock_safe(|| {
+            mockable_2.mock_safe(|| MockResult::Return("mocked 2".to_string()));
+            MockResult::Return("mocked 1".to_string())
+        });
+
+        assert_eq!("not mocked 2", mockable_2());
+        assert_eq!("mocked 1", mockable_1());
+        assert_eq!("mocked 2", mockable_2());
+    }
+
+    #[test]
+    fn when_creating_mock_of_other_function_and_calling_it_then_runs_new_mock() {
+        mockable_1.mock_safe(|| {
+            mockable_2.mock_safe(|| MockResult::Return("mocked 2".to_string()));
+            MockResult::Return(format!("mocked 1 {}", mockable_2()))
+        });
+
+        assert_eq!("mocked 1 mocked 2", mockable_1());
+    }
+}

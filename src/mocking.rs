@@ -2,6 +2,7 @@ use std::any::{Any, TypeId};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::mem::transmute;
+use std::rc::Rc;
 
 /// Trait for setting up mocks
 ///
@@ -83,17 +84,17 @@ pub enum MockResult<T, O> {
 }
 
 thread_local!{
-    static MOCK_STORE: RefCell<HashMap<TypeId, Box<FnMut<(), Output=()>>>> = RefCell::new(HashMap::new())
+    static MOCK_STORE: RefCell<HashMap<TypeId, Rc<RefCell<Box<FnMut<(), Output=()>>>>>> = RefCell::new(HashMap::new())
 }
 
 impl<T, O, F: FnOnce<T, Output=O>> Mockable<T, O> for F {
     unsafe fn mock_raw<M: FnMut<T, Output=MockResult<T, O>>>(&self, mock: M) {
         let id = self.get_mock_id();
         MOCK_STORE.with(|mock_ref_cell| {
-            let fn_box: Box<FnMut<T, Output=MockResult<T, O>>> = Box::new(mock);
-            let stored: Box<FnMut<(), Output=()>> = transmute(fn_box);
-            let mock_map = &mut*mock_ref_cell.borrow_mut();
-            mock_map.insert(id, stored);
+            let real = Rc::new(RefCell::new(Box::new(mock) as Box<FnMut<_, Output=_>>));
+            let stored = transmute(real);
+            mock_ref_cell.borrow_mut()
+                .insert(id, stored);
         })
     }
 
@@ -106,17 +107,20 @@ impl<T, O, F: FnOnce<T, Output=O>> Mockable<T, O> for F {
     fn call_mock(&self, input: T) -> MockResult<T, O> {
         unsafe {
             let id = self.get_mock_id();
-            MOCK_STORE.with(|mock_ref_cell| {
-                let mock_map = &mut*mock_ref_cell.borrow_mut();
-                match mock_map.get_mut(&id) {
-                    Some(stored_box) => {
-                        let stored = &mut**stored_box;
-                        let mock: &mut FnMut<T, Output=MockResult<T, O>> = transmute(stored);
-                        mock.call_mut(input)
-                    },
-                    None => MockResult::Continue(input),
+            let rc_opt = MOCK_STORE.with(|mock_ref_cell|
+                mock_ref_cell.borrow()
+                    .get(&id)
+                    .cloned()
+            );
+            let stored_opt = rc_opt.as_ref()
+                .and_then(|rc| rc.try_borrow_mut().ok());
+            match stored_opt {
+                Some(mut stored) => {
+                    let real: &mut Box<FnMut<_, Output=_>> = transmute(&mut*stored);
+                    real.call_mut(input)
                 }
-            })
+                None => MockResult::Continue(input),
+            }
         }
     }
 
