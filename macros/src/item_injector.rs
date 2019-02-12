@@ -1,4 +1,4 @@
-use header_builder::FnHeaderBuilder;
+use crate::header_builder::FnHeaderBuilder;
 use syn::{ArgCaptured, Attribute, Block, FnArg, FnDecl, Ident, ImplItem, ImplItemMethod, Item, ItemFn, ItemImpl,
           ItemMod, ItemTrait, MethodSig, Pat, PatIdent, TraitItem, TraitItemMethod};
 use syn::punctuated::Punctuated;

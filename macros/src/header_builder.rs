@@ -1,4 +1,4 @@
-use display_delegate::display;
+use crate::display_delegate::display;
 use proc_macro2::{Group, Span, TokenTree};
 use quote::{ToTokens};
 use std::fmt::{Error, Formatter};

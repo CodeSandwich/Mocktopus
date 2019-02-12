@@ -9,6 +9,7 @@ categories = ["development-tools::testing"]
 repository = "https://github.com/CodeSandwich/Mocktopus"
 license = "MIT"
 exclude = ["logo.png", "logo.svg"]
+edition = "2018"
 
 [badges]
 travis-ci = { repository = "CodeSandwich/Mocktopus" }

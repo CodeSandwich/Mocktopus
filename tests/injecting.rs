@@ -3,8 +3,8 @@
 // Test if injecting works even if mocktopus is aliased
 extern crate mocktopus as mocktopus_aliased;
 
-use mocktopus_aliased::macros::*;
-use mocktopus_aliased::mocking::*;
+use crate::mocktopus_aliased::macros::*;
+use crate::mocktopus_aliased::mocking::*;
 
 mod injector_injects_annotated_fns {
     use super::*;
