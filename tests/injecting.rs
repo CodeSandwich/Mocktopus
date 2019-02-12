@@ -218,7 +218,9 @@ mod injector_injects_annotated_items {
             assert_eq!("not mocked", multi_file_module::function());
         }
 
+        // Broken by https://github.com/CodeSandwich/Mocktopus/issues/29
         #[test]
+        #[ignore]
         fn when_mocked_then_runs_mock() {
             unsafe {
                 multi_file_module::function.mock_raw(|| MockResult::Return("mocked"))
