@@ -1,5 +1,4 @@
 use display_delegate::display;
-use lifetime_remover::remove_lifetimes_from_path;
 use proc_macro2::{Group, Span, TokenTree};
 use quote::{ToTokens};
 use std::fmt::{Error, Formatter};
@@ -97,10 +96,8 @@ fn write_full_fn_name(f: &mut Formatter, builder: &FnHeaderBuilder, fn_ident: &I
     write!(f, "{}::<{}>", fn_ident, display(|f| write_fn_generics(f, fn_decl)))
 }
 
-fn write_trait_path<T: ToTokens + Clone>(f: &mut Formatter, trait_path: &Punctuated<PathSegment, T>) -> Result<(), Error> {
-    let mut trait_path_without_lifetimes = trait_path.clone();
-    remove_lifetimes_from_path(&mut trait_path_without_lifetimes);
-    write!(f, "{}", trait_path_without_lifetimes.into_token_stream())
+fn write_trait_path<T: ToTokens + Clone>(f: &mut Formatter, path: &Punctuated<PathSegment, T>) -> Result<(), Error> {
+    write!(f, "{}", path.into_token_stream())
 }
 
 fn write_fn_generics(f: &mut Formatter, fn_decl: &FnDecl) -> Result<(), Error> {

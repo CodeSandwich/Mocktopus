@@ -48,7 +48,7 @@ mod mocking_impls_of_traits_generic_over_generic_refs {
     }
 
     #[mockable]
-    impl<'a, T> Trait<&'a T> for Struct {
+    impl<T> Trait<&T> for Struct {
         fn method() -> &'static str {
             "not mocked"
         }

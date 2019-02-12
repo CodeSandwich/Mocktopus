@@ -17,7 +17,7 @@ travis-ci = { repository = "CodeSandwich/Mocktopus" }
 doctest = false
 
 [dependencies]
-mocktopus_macros = "=0.6.0"
+mocktopus_macros = { path = "macros" } #"=0.6.0"
 
 [workspace]
 members = ["macros"]

@@ -12,7 +12,6 @@ extern crate quote;
 mod display_delegate;
 mod item_injector;
 mod header_builder;
-mod lifetime_remover;
 
 use proc_macro::{Span, TokenStream};
 use quote::ToTokens;
