@@ -19,7 +19,7 @@ use quote::ToTokens;
 /// Procedural macro, makes items and their sub-items mockable
 ///
 /// # Valid to annotate
-/// - module definitions (makes all its valid to annotate items annotated, even if stored in another file)
+/// - module definitions (makes all its valid to annotate items annotated)
 ///
 /// ```
 /// #[mockable]
@@ -85,9 +85,14 @@ use quote::ToTokens;
 ///     fn mockable() { ... }
 /// }
 /// ```
-///
 /// # Indifferent to annotate
 /// - already mockable items (inside annotated modules)
+/// - module declarations
+///
+/// ```
+/// #[mockable]
+/// mod module;
+/// ```
 /// - const functions (they are impossible to mock)
 /// - unsafe functions (they are impossible to mock)
 /// - any macro generated items (they are impossible to mock)

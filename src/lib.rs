@@ -33,14 +33,14 @@
 //!
 //! ```
 //! [dev-dependencies]
-//! mocktopus = "0.1.0"
+//! mocktopus = "0.7.0"
 //! ```
 //! Enable procedural macros in crate root:
 //!
 //! ```
 //! #![cfg_attr(test, feature(proc_macro_hygiene))]
 //! ```
-//! Import Mocktopus:
+//! Import Mocktopus (skip for Rust 2018):
 //!
 //! ```
 //! #[cfg(test)]
@@ -56,11 +56,37 @@
 //! #[cfg(test)]
 //! use mocktopus::macros::*;
 //! ```
-//! It is possible to annotate modules, which makes all their potentially mockable content mockable.
-//! To make every function in project mockable annotate each module in its root:
+//! Annotate mockable code like standalone functions or impl blocks:
+//!
+//! ```
+//! #[mockable]
+//! fn my_fn() {}
+//!
+//! #[mockable]
+//! impl Struct {
+//!     fn my_method() {}
+//! }
+//! ```
+//! It's NOT legal to annotate single funciton in impl block:
+//!
+//! ```
+//! impl Struct {
+//!     #[mockable] // WRONG, will break Mocktopus
+//!     fn my_method() {}
+//! }
+//! ```
+//! It is possible to annotate modules, which makes all their potentially mockable content mockable:
 //!
 //! ```
 //! #[cfg_attr(test, mockable)]
+//! mod my_module {
+//!     fn my_fn() {}
+//! }
+//! ```
+//! This does NOT work for modules in separate file:
+//!
+//! ```
+//! #[cfg_attr(test, mockable)] // WRONG, has no effect
 //! mod my_module;
 //! ```
 //! # Mocking
@@ -178,7 +204,7 @@
 //! }
 //! ```
 //!
-//! ##Mocking generics
+//! ## Mocking generics
 //! When mocking generic functions, all its generics must be defined and only this variant will be affected:
 //!
 //! ```
@@ -233,6 +259,63 @@
 //!     assert_eq!("2", GenericStruct(&2i32).to_string());
 //! }
 //! ```
+//!
+//! # Mocking tricks
+//! ## Returning reference to value created inside mock
+//!
+//! ```
+//! #[mockable]
+//! fn my_fn(my_string: &String) -> &String {
+//!     my_string
+//! }
+//!
+//! #[test]
+//! fn my_fn_test() {
+//!     my_fn.mock_safe(|_| MockResult::Return(Box::leak(Box::new("mocked".to_string()))));
+//!
+//!     assert_eq!("mocked", my_fn(&"not mocked 1"));
+//!     assert_eq!("mocked", my_fn(&"not mocked 2"));
+//! }
+//! ```
+//! The trick is to store referenced value in a `Box::new` and then prevent its deallocation with `Box::leak`.
+//! This makes structure live forever and returns a `&'static mut` reference to it. The value is not freed until
+//! process termination, so it's viable solution only for use in tests and only if structure doesn't block a lot of
+//! resources like huge amounts of memory, open file handlers, sockets, etc.
+//!
+//! ## Returning value created outside of mock
+//!
+//! ```
+//! #[mockable]
+//! fn my_fn() -> String {
+//!     "not mocked".to_string()
+//! }
+//!
+//! #[test]
+//! fn my_fn_test() {
+//!     mock = Some("mocked".to_string());
+//!     my_fn.mock_safe(move || MockResult::Return(mock.unwrap()));
+//!
+//!     assert_eq!("mocked", my_fn());
+//!     // assert_eq!("mocked", my_fn()); // WILL PANIC!
+//! }
+//! ```
+//! This makes function return predefined value on first call and panic on second one. It could return
+//! `MockResult::Continue` instead of panicking to mock only first call.
+//!
+//! Returned values can be stored in a vector if mock should return different value on different calls:
+//!
+//! ```//!
+//! #[test]
+//! fn my_fn_test() {
+//!     mut mock = vec!["mocked 1".to_string(), "mocked 2".to_string()];
+//!     my_fn.mock_safe(move || MockResult::Return(mock.remove(0)));
+//!
+//!     assert_eq!("mocked 1", my_fn());
+//!     assert_eq!("mocked 2", my_fn());
+//!     // assert_eq!("mocked 3", my_fn()); // WILL PANIC!
+//! }
+//! ```
+//! The vector can store `MockResult`s for more complex mocking.
 #![doc(html_logo_url = "https://raw.githubusercontent.com/CodeSandwich/mocktopus/master/logo.png",
     html_favicon_url = "https://raw.githubusercontent.com/CodeSandwich/mocktopus/master/logo.png")]
 

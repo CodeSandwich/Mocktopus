@@ -88,7 +88,7 @@ mod injector_injects_annotated_traits {
 }
 
 #[mockable]
-mod multi_file_module;
+mod module_annotated_declaration;
 
 mod injector_injects_annotated_items {
     use super::*;
@@ -210,23 +210,19 @@ mod injector_injects_annotated_items {
         }
     }
 
-    mod injects_nested_multi_file_mods_content {
+    mod does_not_inject_mod_with_annotated_declaration {
         use super::*;
 
         #[test]
         fn when_not_mocked_then_runs_normally() {
-            assert_eq!("not mocked", multi_file_module::function());
+            assert_eq!("not mocked", module_annotated_declaration::function());
         }
 
-        // Broken by https://github.com/CodeSandwich/Mocktopus/issues/29
         #[test]
-        #[ignore]
-        fn when_mocked_then_runs_mock() {
-            unsafe {
-                multi_file_module::function.mock_raw(|| MockResult::Return("mocked"))
-            }
+        fn when_mocked_then_runs_normally() {
+            module_annotated_declaration::function.mock_safe(|| MockResult::Return("mocked"));
 
-            assert_eq!("mocked", multi_file_module::function());
+            assert_eq!("not mocked", module_annotated_declaration::function());
         }
     }
 }

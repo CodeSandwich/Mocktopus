@@ -1,5 +1,3 @@
-//#![feature(infer_outlives_requirements)]
-
 extern crate mocktopus;
 
 mod mocking_fns;
