@@ -86,7 +86,7 @@ fn inject_any_fn(builder: &FnHeaderBuilder, attrs: &Vec<Attribute>, constness: &
         return
     }
     unignore_fn_args(&mut fn_decl.inputs);
-    let header_stmt = builder.build(fn_name, fn_decl, block.brace_token.0);
+    let header_stmt = builder.build(fn_name, fn_decl, block.brace_token.span);
     block.stmts.insert(0, header_stmt);
 }
 
@@ -99,7 +99,7 @@ fn unignore_fn_args(inputs: &mut Punctuated<FnArg, Comma>) {
             }
         ) = *fn_arg {
             let span = match *pat {
-                Pat::Wild(ref pat_wild) => pat_wild.underscore_token.0[0],
+                Pat::Wild(ref pat_wild) => pat_wild.underscore_token.spans[0],
                 _ => continue,
             };
             *pat = Pat::Ident(
