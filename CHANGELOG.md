@@ -1,4 +1,10 @@
-## 0.6.0 - 2019-09-02
+## 0.7.0 - 2019-02-13
+- Allow mock closures to call mockable and mocked functions and to create mocks
+- Make functions not mocked during execution of their mock closures to prevent recursive calls
+- Accept inability to inject modules in separate files: remove tests and fix docs
+- Upgrade project to Rust 2018
+- Add mocking tricks to docs
+## 0.6.0 - 2019-02-09
 - Fix for rustc 1.31.0-nightly (ad6e5c003 2018-09-28) and newer (thank you @asomers and @rye!)
 ## 0.5.0 - 2018-07-17
 - Fix for rustc 1.29.0-nightly (1ecf6929d 2018-07-16) and newer
