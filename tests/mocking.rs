@@ -314,3 +314,35 @@ mod creating_mock_inside_mock_closure {
         assert_eq!("mocked 1 mocked 2", mockable_1());
     }
 }
+
+mod clear_mocks {
+    use super::*;
+
+    #[mockable]
+    fn mockable_1() -> String {
+        "not mocked 1".to_string()
+    }
+
+    #[mockable]
+    fn mockable_2() -> String {
+        "not mocked 2".to_string()
+    }
+
+    #[test]
+    fn when_clearing_mocks_original_function_operations_return() {
+        mockable_1.mock_safe(|| {
+            MockResult::Return("mocked 1".to_string())
+        });
+        mockable_2.mock_safe(|| {
+            MockResult::Return("mocked 2".to_string())
+        });
+
+        assert_eq!("mocked 1", mockable_1());
+        assert_eq!("mocked 2", mockable_2());
+
+        clear_mocks();
+
+        assert_eq!("not mocked 1", mockable_1());
+        assert_eq!("not mocked 2", mockable_2());
+    }
+}
