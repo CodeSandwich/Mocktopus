@@ -87,6 +87,13 @@ thread_local!{
     static MOCK_STORE: RefCell<HashMap<TypeId, Rc<RefCell<Box<FnMut<(), Output=()>>>>>> = RefCell::new(HashMap::new())
 }
 
+/// Clear all mocks in the ThreadLocal; only necessary if tests share threads
+pub fn clear_mocks() {
+    MOCK_STORE.with(|mock_ref_cell| {
+        mock_ref_cell.borrow_mut().clear();
+    });
+}
+
 impl<T, O, F: FnOnce<T, Output=O>> Mockable<T, O> for F {
     unsafe fn mock_raw<M: FnMut<T, Output=MockResult<T, O>>>(&self, mock: M) {
         let id = self.get_mock_id();
