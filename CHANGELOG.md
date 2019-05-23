@@ -1,3 +1,5 @@
+## 0.7.1 - 2019-05-24
+- Add function for clearing all mocks (thank you @clinedome-work!)
 ## 0.7.0 - 2019-02-13
 - Allow mock closures to call mockable and mocked functions and to create mocks
 - Make functions not mocked during execution of their mock closures to prevent recursive calls

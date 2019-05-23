@@ -1,6 +1,6 @@
 [package]
 name = "mocktopus"
-version = "0.7.0"
+version = "0.7.1"
 authors = ["CodeSandwich <igor.zuk@protonmail.com>"]
 description = "Mocking framework for Rust"
 readme = "crates_io_readme.md"
@@ -18,7 +18,7 @@ travis-ci = { repository = "CodeSandwich/Mocktopus" }
 doctest = false
 
 [dependencies]
-mocktopus_macros = { path = "macros" } #"=0.7.0"
+mocktopus_macros = "=0.7.0"
 
 [workspace]
 members = ["macros"]
