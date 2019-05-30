@@ -94,6 +94,13 @@ pub fn clear_mocks() {
     });
 }
 
+/// Verify that all mocks were consumed.
+pub fn verify_mocks() {
+    MOCK_STORE.with(|mock_ref_cell| {
+        assert_eq!(mock_ref_cell.borrow_mut().len(), 0);
+    });
+}
+
 impl<T, O, F: FnOnce<T, Output=O>> Mockable<T, O> for F {
     unsafe fn mock_raw<M: FnMut<T, Output=MockResult<T, O>>>(&self, mock: M) {
         let id = self.get_mock_id();
