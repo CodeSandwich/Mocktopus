@@ -64,6 +64,11 @@ pub trait Mockable<T, O> {
     /// ```
     fn mock_safe<M: FnMut<T, Output=MockResult<T, O>> + 'static>(&self, mock: M);
 
+    /// Stop mocking this function.
+    ///
+    /// All future invocations will be forwarded to the real implementation.
+    fn clear_mock(&self);
+
     #[doc(hidden)]
     /// Called before every execution of a mockable function. Checks if mock is set and if it is, calls it.
     fn call_mock(&self, input: T) -> MockResult<T, O>;
@@ -109,6 +114,13 @@ impl<T, O, F: FnOnce<T, Output=O>> Mockable<T, O> for F {
         unsafe {
             self.mock_raw(mock)
         }
+    }
+
+    fn clear_mock(&self) {
+        let id = unsafe { self.get_mock_id() };
+        MOCK_STORE.with(|mock_ref_cell| {
+            mock_ref_cell.borrow_mut().remove(&id);
+        });
     }
 
     fn call_mock(&self, input: T) -> MockResult<T, O> {

@@ -346,3 +346,21 @@ mod clear_mocks {
         assert_eq!("not mocked 2", mockable_2());
     }
 }
+
+mod clear_mock {
+    use super::*;
+
+    #[mockable]
+    fn mockable_1() -> i32 {
+        0
+    }
+
+    #[test]
+    fn clearing_deregisters_the_mock() {
+        mockable_1.mock_safe(|| MockResult::Return(1));
+        assert_eq!(mockable_1(), 1);
+
+        mockable_1.clear_mock();
+        assert_eq!(mockable_1(), 0);
+    }
+}
