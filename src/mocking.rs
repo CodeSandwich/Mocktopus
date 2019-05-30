@@ -1,6 +1,7 @@
 use std::any::{Any, TypeId};
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::marker::PhantomData;
 use std::mem::transmute;
 use std::rc::Rc;
 
@@ -64,6 +65,8 @@ pub trait Mockable<T, O> {
     /// ```
     fn mock_safe<M: FnMut<T, Output=MockResult<T, O>> + 'static>(&self, mock: M);
 
+    fn mock_scoped<'a, M: FnMut<T, Output=MockResult<T, O>> + 'a>(&self, mock: M) -> ScopedMock<'a>;
+
     /// Stop mocking this function.
     ///
     /// All future invocations will be forwarded to the real implementation.
@@ -99,6 +102,23 @@ pub fn clear_mocks() {
     });
 }
 
+pub struct ScopedMock<'a> {
+    phantom: PhantomData<&'a ()>,
+    id: TypeId,
+}
+
+impl<'a> Drop for ScopedMock<'a> {
+    fn drop(&mut self) {
+        clear_id(self.id);
+    }
+}
+
+fn clear_id(id: TypeId) {
+    MOCK_STORE.with(|mock_ref_cell| {
+        mock_ref_cell.borrow_mut().remove(&id);
+    });
+}
+
 impl<T, O, F: FnOnce<T, Output=O>> Mockable<T, O> for F {
     unsafe fn mock_raw<M: FnMut<T, Output=MockResult<T, O>>>(&self, mock: M) {
         let id = self.get_mock_id();
@@ -116,11 +136,19 @@ impl<T, O, F: FnOnce<T, Output=O>> Mockable<T, O> for F {
         }
     }
 
+    fn mock_scoped<'a, M: FnMut<T, Output=MockResult<T, O>> + 'a>(&self, mock: M) -> ScopedMock<'a> {
+        unsafe {
+            self.mock_raw(mock)
+        }
+        ScopedMock {
+            phantom: PhantomData,
+            id: unsafe { self.get_mock_id() },
+        }
+    }
+
     fn clear_mock(&self) {
         let id = unsafe { self.get_mock_id() };
-        MOCK_STORE.with(|mock_ref_cell| {
-            mock_ref_cell.borrow_mut().remove(&id);
-        });
+        clear_id(id);
     }
 
     fn call_mock(&self, input: T) -> MockResult<T, O> {
