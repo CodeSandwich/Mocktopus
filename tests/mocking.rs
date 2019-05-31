@@ -376,7 +376,7 @@ mod mock_scoped {
     #[test]
     fn dropping_the_scope_deregisters_the_mock() {
         {
-            let _scope = mockable_1.mock_scoped(|| MockResult::Return(1));
+            let _scope = unsafe { mockable_1.mock_scoped(|| MockResult::Return(1)) };
             assert_eq!(mockable_1(), 1);
         }
 
@@ -387,10 +387,10 @@ mod mock_scoped {
     fn can_use_local_variables_safely() {
         let mut x = 0;
         {
-            let _scope = mockable_1.mock_scoped(|| {
+            let _scope = unsafe { mockable_1.mock_scoped(|| {
                 x += 1;
                 MockResult::Return(1)
-            });
+            }) };
             mockable_1();
         }
         assert_eq!(x, 1);

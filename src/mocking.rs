@@ -65,7 +65,34 @@ pub trait Mockable<T, O> {
     /// ```
     fn mock_safe<M: FnMut<T, Output=MockResult<T, O>> + 'static>(&self, mock: M);
 
-    fn mock_scoped<'a, M: FnMut<T, Output=MockResult<T, O>> + 'a>(&self, mock: M) -> ScopedMock<'a>;
+    /// A variant of [mock_raw](#tymethod.mock_raw) that can use local variables.
+    ///
+    /// # Safety
+    ///
+    /// `mock_scoped` returns a [`ScopedMock`](struct.ScopedMock.html) object.
+    /// If this object's `drop` impl is not called (for example because the
+    /// `ScopedMock` object is `std::mem::forgot`) and
+    /// [`clear_mock`](#tymethod.clear_mock) is not called, the next call to the
+    /// mock function will invoke undefined behavior.
+    ///
+    /// If you do not do anything crazy, this is safe.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #[mockable]
+    /// fn print_first(x: &[i32]) {
+    ///     print!("{:?}", &x[0]);
+    /// }
+    ///
+    /// let mut called = false;
+    /// let _scope = unsafe { get_string.mock_scoped(|| {
+    ///     called = true;
+    ///     MockResult::Return(&x[0])
+    /// }) };
+    /// assert!(called);
+    /// ```
+    unsafe fn mock_scoped<'a, M: FnMut<T, Output=MockResult<T, O>> + 'a>(&self, mock: M) -> ScopedMock<'a>;
 
     /// Stop mocking this function.
     ///
@@ -136,13 +163,11 @@ impl<T, O, F: FnOnce<T, Output=O>> Mockable<T, O> for F {
         }
     }
 
-    fn mock_scoped<'a, M: FnMut<T, Output=MockResult<T, O>> + 'a>(&self, mock: M) -> ScopedMock<'a> {
-        unsafe {
-            self.mock_raw(mock)
-        }
+    unsafe fn mock_scoped<'a, M: FnMut<T, Output=MockResult<T, O>> + 'a>(&self, mock: M) -> ScopedMock<'a> {
+        self.mock_raw(mock);
         ScopedMock {
             phantom: PhantomData,
-            id: unsafe { self.get_mock_id() },
+            id: self.get_mock_id(),
         }
     }
 
