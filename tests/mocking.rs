@@ -396,3 +396,44 @@ mod mock_scoped {
         assert_eq!(x, 1);
     }
 }
+
+mod mock_context {
+    use super::*;
+
+    #[mockable]
+    fn mockable_1() -> i32 { 0 }
+
+    #[test]
+    fn test_run_mocks_the_function() {
+        let mut x = 0;
+        MockContext::new()
+            .mock_safe(mockable_1, || {
+                x += 1;
+                MockResult::Return(1)
+            })
+            .run(|| {
+                assert_eq!(mockable_1(), 1);
+            });
+        assert_eq!(mockable_1(), 0);
+        assert_eq!(x, 1);
+    }
+
+    #[test]
+    fn test_run_restores_the_function() {
+        MockContext::new()
+            .mock_safe(mockable_1, || {
+                    MockResult::Return(1)
+            })
+            .run(|| {});
+        assert_eq!(mockable_1(), 0);
+    }
+
+    #[test]
+    fn test_run_no_mocks() {
+        MockContext::new()
+            .run(|| {
+                assert_eq!(mockable_1(), 0);
+            });
+        assert_eq!(mockable_1(), 0);
+    }
+}

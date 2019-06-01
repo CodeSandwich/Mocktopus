@@ -67,6 +67,8 @@ pub trait Mockable<T, O> {
 
     /// A variant of [mock_raw](#tymethod.mock_raw) that can use local variables.
     ///
+    /// For a safe variant, see [`MockContext`].
+    ///
     /// # Safety
     ///
     /// `mock_scoped` returns a [`ScopedMock`](struct.ScopedMock.html) object.
@@ -198,5 +200,41 @@ impl<T, O, F: FnOnce<T, Output=O>> Mockable<T, O> for F {
 
     unsafe fn get_mock_id(&self) -> TypeId {
         (||()).type_id()
+    }
+}
+
+pub struct MockContext<'a> {
+    planned_mocks: Vec<Box<FnOnce() -> ScopedMock<'a> + 'a>>,
+}
+
+impl<'a> MockContext<'a> {
+    pub fn new() -> Self {
+        MockContext {
+            planned_mocks: Vec::new(),
+        }
+    }
+
+    pub fn mock_safe<
+        Args,
+        Output,
+        M: Mockable<Args, Output> + 'a,
+        F: FnMut<Args, Output = MockResult<Args, Output>> + 'a,
+    >(
+        mut self,
+        mock: M,
+        body: F,
+    ) -> Self {
+        self.planned_mocks
+            .push(Box::new(move || unsafe { mock.mock_scoped(body) }));
+        self
+    }
+
+    pub fn run<T, F: FnOnce() -> T>(self, f: F) -> T {
+        let _scoped_mocks = self
+            .planned_mocks
+            .into_iter()
+            .map(|f| f())
+            .collect::<Vec<_>>();
+        f()
     }
 }
