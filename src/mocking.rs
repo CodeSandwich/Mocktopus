@@ -177,15 +177,14 @@ impl<T, O, F: FnOnce<T, Output=O>> Mockable<T, O> for F {
     }
 }
 
+#[derive(Default)]
 pub struct MockContext<'a> {
-    planned_mocks: Vec<Box<FnOnce() -> ScopedMock<'a> + 'a>>,
+    planned_mocks: HashMap<TypeId, Box<FnOnce() -> ScopedMock<'a> + 'a>>,
 }
 
 impl<'a> MockContext<'a> {
     pub fn new() -> Self {
-        MockContext {
-            planned_mocks: Vec::new(),
-        }
+        Self::default()
     }
 
     pub fn mock_safe<
@@ -198,8 +197,10 @@ impl<'a> MockContext<'a> {
         mock: M,
         body: F,
     ) -> Self {
-        self.planned_mocks
-            .push(Box::new(move || unsafe { ScopedMock::new(&mock, body) }));
+        self.planned_mocks.insert(
+            unsafe { mock.get_mock_id() },
+            Box::new(move || unsafe { ScopedMock::new(&mock, body) }),
+        );
         self
     }
 
@@ -207,7 +208,7 @@ impl<'a> MockContext<'a> {
         let _scoped_mocks = self
             .planned_mocks
             .into_iter()
-            .map(|f| f())
+            .map(|entry| entry.1())
             .collect::<Vec<_>>();
         f()
     }
