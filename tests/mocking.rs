@@ -365,38 +365,6 @@ mod clear_mock {
     }
 }
 
-mod mock_scoped {
-    use super::*;
-
-    #[mockable]
-    fn mockable_1() -> i32 {
-        0
-    }
-
-    #[test]
-    fn dropping_the_scope_deregisters_the_mock() {
-        {
-            let _scope = unsafe { mockable_1.mock_scoped(|| MockResult::Return(1)) };
-            assert_eq!(mockable_1(), 1);
-        }
-
-        assert_eq!(mockable_1(), 0);
-    }
-
-    #[test]
-    fn can_use_local_variables_safely() {
-        let mut x = 0;
-        {
-            let _scope = unsafe { mockable_1.mock_scoped(|| {
-                x += 1;
-                MockResult::Return(1)
-            }) };
-            mockable_1();
-        }
-        assert_eq!(x, 1);
-    }
-}
-
 mod mock_context {
     use super::*;
 
