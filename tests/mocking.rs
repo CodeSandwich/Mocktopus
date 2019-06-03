@@ -389,9 +389,7 @@ mod mock_context {
     #[test]
     fn test_run_restores_the_function() {
         MockContext::new()
-            .mock_safe(mockable_1, || {
-                    MockResult::Return(1)
-            })
+            .mock_safe(mockable_1, || MockResult::Return(1))
             .run(|| {});
         assert_eq!(mockable_1(), 0);
     }
@@ -401,6 +399,18 @@ mod mock_context {
         MockContext::new()
             .run(|| {
                 assert_eq!(mockable_1(), 0);
+            });
+        assert_eq!(mockable_1(), 0);
+    }
+
+    #[test]
+    fn test_mock_the_same_function_multiple_times() {
+        MockContext::new()
+            .mock_safe(mockable_1, || MockResult::Return(1))
+            .mock_safe(mockable_1, || MockResult::Return(2))
+            .mock_safe(mockable_1, || MockResult::Return(3))
+            .run(|| {
+                assert_eq!(mockable_1(), 3);
             });
         assert_eq!(mockable_1(), 0);
     }
