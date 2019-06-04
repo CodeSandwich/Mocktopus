@@ -1,6 +1,7 @@
 use std::any::{Any, TypeId};
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::marker::PhantomData;
 use std::mem::transmute;
 use std::rc::Rc;
 
@@ -64,6 +65,11 @@ pub trait Mockable<T, O> {
     /// ```
     fn mock_safe<M: FnMut<T, Output=MockResult<T, O>> + 'static>(&self, mock: M);
 
+    /// Stop mocking this function.
+    ///
+    /// All future invocations will be forwarded to the real implementation.
+    fn clear_mock(&self);
+
     #[doc(hidden)]
     /// Called before every execution of a mockable function. Checks if mock is set and if it is, calls it.
     fn call_mock(&self, input: T) -> MockResult<T, O>;
@@ -94,6 +100,36 @@ pub fn clear_mocks() {
     });
 }
 
+struct ScopedMock<'a> {
+    phantom: PhantomData<&'a ()>,
+    id: TypeId,
+}
+
+impl<'a> ScopedMock<'a> {
+    unsafe fn new<T, O, M: Mockable<T, O> + 'a, F: FnMut<T, Output=MockResult<T, O>>>(
+        mockable: &M,
+        mock: F,
+    ) -> Self {
+        mockable.mock_raw(mock);
+        ScopedMock {
+            phantom: PhantomData,
+            id: mockable.get_mock_id(),
+        }
+    }
+}
+
+impl<'a> Drop for ScopedMock<'a> {
+    fn drop(&mut self) {
+        clear_id(self.id);
+    }
+}
+
+fn clear_id(id: TypeId) {
+    MOCK_STORE.with(|mock_ref_cell| {
+        mock_ref_cell.borrow_mut().remove(&id);
+    });
+}
+
 impl<T, O, F: FnOnce<T, Output=O>> Mockable<T, O> for F {
     unsafe fn mock_raw<M: FnMut<T, Output=MockResult<T, O>>>(&self, mock: M) {
         let id = self.get_mock_id();
@@ -109,6 +145,11 @@ impl<T, O, F: FnOnce<T, Output=O>> Mockable<T, O> for F {
         unsafe {
             self.mock_raw(mock)
         }
+    }
+
+    fn clear_mock(&self) {
+        let id = unsafe { self.get_mock_id() };
+        clear_id(id);
     }
 
     fn call_mock(&self, input: T) -> MockResult<T, O> {
@@ -133,5 +174,99 @@ impl<T, O, F: FnOnce<T, Output=O>> Mockable<T, O> for F {
 
     unsafe fn get_mock_id(&self) -> TypeId {
         (||()).type_id()
+    }
+}
+
+/// `MockContext` allows for safe capture of local variables.
+///
+/// It does this by forcing only mocking the actual function while in the body
+/// of [`run`].
+///
+/// # Examples
+///
+/// Simple function replacement:
+///
+/// ```
+/// use mocktopus::macros::mockable;
+/// use mocktopus::mocking::{MockContext, MockResult};
+///
+/// #[mockable]
+/// fn f() -> i32 {
+///     0
+/// }
+///
+/// MockContext::new()
+///     .mock_safe(f, || MockResult::Return(1))
+///     .run(|| {
+///         assert_eq!(f(), 1);
+///     });
+/// ```
+///
+/// Using local variables:
+///
+/// ```
+/// use mocktopus::macros::mockable;
+/// use mocktopus::mocking::{MockContext, MockResult};
+///
+/// #[mockable]
+/// fn as_str(s: &String) -> &str {
+///     &s
+/// }
+///
+/// let mut count = 0;
+/// MockContext::new()
+///     .mock_safe(as_str, |s| { count += 1; MockResult::Return(&s) })
+///     .run(|| {
+///         assert_eq!(as_str(&"abc".to_string()), "abc");
+///     });
+/// assert_eq!(count, 1);
+/// ```
+#[derive(Default)]
+pub struct MockContext<'a> {
+    planned_mocks: HashMap<TypeId, Box<FnOnce() -> ScopedMock<'a> + 'a>>,
+}
+
+impl<'a> MockContext<'a> {
+    /// Create a new MockContext object.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Set up a function to be mocked.
+    ///
+    /// This function doesn't actually mock the function.  It registers it as a
+    /// function that will be mocked when [`run`](#method.run) is called.
+    pub fn mock_safe<
+        Args,
+        Output,
+        M: Mockable<Args, Output> + 'a,
+        F: FnMut<Args, Output = MockResult<Args, Output>> + 'a,
+    >(
+        mut self,
+        mock: M,
+        body: F,
+    ) -> Self {
+        self.planned_mocks.insert(
+            unsafe { mock.get_mock_id() },
+            Box::new(move || unsafe { ScopedMock::new(&mock, body) }),
+        );
+        self
+    }
+
+    /// Run the function while mocking all the functions.
+    ///
+    /// This function will mock all functions registered for mocking, run the
+    /// function passed in, then deregister those functions.  It does this in a
+    /// panic-safe way.  Note that functions are only mocked in the current
+    /// thread and other threads may invoke the real implementations.
+    ///
+    /// Register a function for mocking with [`mock_safe`](#method.mock_safe).
+    pub fn run<T, F: FnOnce() -> T>(self, f: F) -> T {
+        let _scoped_mocks = self
+            .planned_mocks
+            .into_iter()
+            .map(|entry| entry.1())
+            .collect::<Vec<_>>();
+        f()
     }
 }

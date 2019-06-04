@@ -346,3 +346,72 @@ mod clear_mocks {
         assert_eq!("not mocked 2", mockable_2());
     }
 }
+
+mod clear_mock {
+    use super::*;
+
+    #[mockable]
+    fn mockable_1() -> i32 {
+        0
+    }
+
+    #[test]
+    fn clearing_deregisters_the_mock() {
+        mockable_1.mock_safe(|| MockResult::Return(1));
+        assert_eq!(mockable_1(), 1);
+
+        mockable_1.clear_mock();
+        assert_eq!(mockable_1(), 0);
+    }
+}
+
+mod mock_context {
+    use super::*;
+
+    #[mockable]
+    fn mockable_1() -> i32 { 0 }
+
+    #[test]
+    fn test_run_mocks_the_function() {
+        let mut x = 0;
+        MockContext::new()
+            .mock_safe(mockable_1, || {
+                x += 1;
+                MockResult::Return(1)
+            })
+            .run(|| {
+                assert_eq!(mockable_1(), 1);
+            });
+        assert_eq!(mockable_1(), 0);
+        assert_eq!(x, 1);
+    }
+
+    #[test]
+    fn test_run_restores_the_function() {
+        MockContext::new()
+            .mock_safe(mockable_1, || MockResult::Return(1))
+            .run(|| {});
+        assert_eq!(mockable_1(), 0);
+    }
+
+    #[test]
+    fn test_run_no_mocks() {
+        MockContext::new()
+            .run(|| {
+                assert_eq!(mockable_1(), 0);
+            });
+        assert_eq!(mockable_1(), 0);
+    }
+
+    #[test]
+    fn test_mock_the_same_function_multiple_times() {
+        MockContext::new()
+            .mock_safe(mockable_1, || MockResult::Return(1))
+            .mock_safe(mockable_1, || MockResult::Return(2))
+            .mock_safe(mockable_1, || MockResult::Return(3))
+            .run(|| {
+                assert_eq!(mockable_1(), 3);
+            });
+        assert_eq!(mockable_1(), 0);
+    }
+}
