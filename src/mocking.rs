@@ -177,16 +177,65 @@ impl<T, O, F: FnOnce<T, Output=O>> Mockable<T, O> for F {
     }
 }
 
+/// `MockContext` allows for safe capture of local variables.
+///
+/// It does this by forcing only mocking the actual function while in the body
+/// of [`run`].
+///
+/// # Examples
+///
+/// Simple function replacement:
+///
+/// ```
+/// use mocktopus::macros::mockable;
+/// use mocktopus::mocking::{MockContext, MockResult};
+///
+/// #[mockable]
+/// fn f() -> i32 {
+///     0
+/// }
+///
+/// MockContext::new()
+///     .mock_safe(f, || MockResult::Return(1))
+///     .run(|| {
+///         assert_eq!(f(), 1);
+///     });
+/// ```
+///
+/// Using local variables:
+///
+/// ```
+/// use mocktopus::macros::mockable;
+/// use mocktopus::mocking::{MockContext, MockResult};
+///
+/// #[mockable]
+/// fn as_str(s: &String) -> &str {
+///     &s
+/// }
+///
+/// let mut count = 0;
+/// MockContext::new()
+///     .mock_safe(as_str, |s| { count += 1; MockResult::Return(&s) })
+///     .run(|| {
+///         assert_eq!(as_str(&"abc".to_string()), "abc");
+///     });
+/// assert_eq!(count, 1);
+/// ```
 #[derive(Default)]
 pub struct MockContext<'a> {
     planned_mocks: HashMap<TypeId, Box<FnOnce() -> ScopedMock<'a> + 'a>>,
 }
 
 impl<'a> MockContext<'a> {
+    /// Create a new MockContext object.
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Set up a function to be mocked.
+    ///
+    /// This function doesn't actually mock the function.  It registers it as a
+    /// function that will be mocked when [`run`](#method.run) is called.
     pub fn mock_safe<
         Args,
         Output,
@@ -204,6 +253,14 @@ impl<'a> MockContext<'a> {
         self
     }
 
+    /// Run the function while mocking all the functions.
+    ///
+    /// This function will mock all functions registered for mocking, run the
+    /// function passed in, then deregister those functions.  It does this in a
+    /// panic-safe way.  Note that functions are only mocked in the current
+    /// thread and other threads may invoke the real implementations.
+    ///
+    /// Register a function for mocking with [`mock_safe`](#method.mock_safe).
     pub fn run<T, F: FnOnce() -> T>(self, f: F) -> T {
         let _scoped_mocks = self
             .planned_mocks
