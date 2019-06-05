@@ -90,14 +90,13 @@ pub enum MockResult<T, O> {
 }
 
 thread_local!{
-    static MOCK_STORE: RefCell<HashMap<TypeId, Rc<RefCell<Box<FnMut<(), Output=()>>>>>> = RefCell::new(HashMap::new())
+    // static MOCK_STORE: RefCell<HashMap<TypeId, Rc<RefCell<Box<FnMut<(), Output=()>>>>>> = RefCell::new(HashMap::new())
+    static MOCK_STORE: MockStore = MockStore::default()
 }
 
 /// Clear all mocks in the ThreadLocal; only necessary if tests share threads
 pub fn clear_mocks() {
-    MOCK_STORE.with(|mock_ref_cell| {
-        mock_ref_cell.borrow_mut().clear();
-    });
+    MOCK_STORE.with(|mock_store| mock_store.clear())
 }
 
 struct ScopedMock<'a> {
@@ -125,20 +124,13 @@ impl<'a> Drop for ScopedMock<'a> {
 }
 
 fn clear_id(id: TypeId) {
-    MOCK_STORE.with(|mock_ref_cell| {
-        mock_ref_cell.borrow_mut().remove(&id);
-    });
+    MOCK_STORE.with(|mock_store| mock_store.clear_id(id))
 }
 
 impl<T, O, F: FnOnce<T, Output=O>> Mockable<T, O> for F {
     unsafe fn mock_raw<M: FnMut<T, Output=MockResult<T, O>>>(&self, mock: M) {
         let id = self.get_mock_id();
-        MOCK_STORE.with(|mock_ref_cell| {
-            let real = Rc::new(RefCell::new(Box::new(mock) as Box<FnMut<_, Output=_>>));
-            let stored = transmute(real);
-            mock_ref_cell.borrow_mut()
-                .insert(id, stored);
-        })
+        MOCK_STORE.with(|mock_store| mock_store.add(id, mock))
     }
 
     fn mock_safe<M: FnMut<T, Output=MockResult<T, O>> + 'static>(&self, mock: M) {
@@ -155,18 +147,10 @@ impl<T, O, F: FnOnce<T, Output=O>> Mockable<T, O> for F {
     fn call_mock(&self, input: T) -> MockResult<T, O> {
         unsafe {
             let id = self.get_mock_id();
-            let rc_opt = MOCK_STORE.with(|mock_ref_cell|
-                mock_ref_cell.borrow()
-                    .get(&id)
-                    .cloned()
-            );
-            let stored_opt = rc_opt.as_ref()
-                .and_then(|rc| rc.try_borrow_mut().ok());
-            match stored_opt {
-                Some(mut stored) => {
-                    let real: &mut Box<FnMut<_, Output=_>> = transmute(&mut*stored);
-                    real.call_mut(input)
-                }
+            let rc_opt = MOCK_STORE.with(|mock_store| mock_store.get(id));
+            let mock_opt = rc_opt.as_ref().and_then(|rc| rc.try_borrow_mut().ok());
+            match mock_opt {
+                Some(mut mock) => mock.call_mut(input),
                 None => MockResult::Continue(input),
             }
         }
@@ -268,5 +252,33 @@ impl<'a> MockContext<'a> {
             .map(|entry| entry.1())
             .collect::<Vec<_>>();
         f()
+    }
+}
+
+#[derive(Default)]
+struct MockStore {
+    mocks: RefCell<HashMap<TypeId, Rc<RefCell<Box<FnMut<(), Output=()>>>>>>,
+}
+
+impl MockStore {
+    fn clear(&self) {
+        self.mocks.borrow_mut().clear()
+    }
+
+    fn clear_id(&self, id: TypeId) {
+        self.mocks.borrow_mut().remove(&id);
+    }
+
+    unsafe fn add<I, O, M: FnMut<I, Output=MockResult<I, O>>>(&self, id: TypeId, mock: M) {
+        let boxed = Box::new(mock) as Box<FnMut<_, Output=_>>;
+        let real = Rc::new(RefCell::new(boxed));
+        let stored = transmute(real);
+        self.mocks.borrow_mut().insert(id, stored);
+    }
+
+    unsafe fn get<I, O>(&self, id: TypeId)
+            -> Option<Rc<RefCell<Box<FnMut<I, Output=MockResult<I, O>>>>>> {
+        let mock = self.mocks.borrow().get(&id).cloned();
+        transmute(mock)
     }
 }
