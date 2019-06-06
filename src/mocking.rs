@@ -130,7 +130,9 @@ fn clear_id(id: TypeId) {
 impl<T, O, F: FnOnce<T, Output=O>> Mockable<T, O> for F {
     unsafe fn mock_raw<M: FnMut<T, Output=MockResult<T, O>>>(&self, mock: M) {
         let id = self.get_mock_id();
-        MOCK_STORE.with(|mock_store| mock_store.add(id, mock))
+        let boxed = Box::new(mock) as Box::<FnMut<_, Output = _>>;
+        let static_boxed: Box<FnMut<T, Output = MockResult<T, O>> + 'static> = transmute(boxed);
+        MOCK_STORE.with(|mock_store| mock_store.add(id, static_boxed))
     }
 
     fn mock_safe<M: FnMut<T, Output=MockResult<T, O>> + 'static>(&self, mock: M) {
@@ -147,10 +149,9 @@ impl<T, O, F: FnOnce<T, Output=O>> Mockable<T, O> for F {
     fn call_mock(&self, input: T) -> MockResult<T, O> {
         unsafe {
             let id = self.get_mock_id();
-            let rc_opt = MOCK_STORE.with(|mock_store| mock_store.get(id));
-            let mock_opt = rc_opt.as_ref().and_then(|rc| rc.try_borrow_mut().ok());
+            let mock_opt = MOCK_STORE.with(|mock_store| mock_store.get(id));
             match mock_opt {
-                Some(mut mock) => mock.call_mut(input),
+                Some(mock) => mock.call(input),
                 None => MockResult::Continue(input),
             }
         }
@@ -257,7 +258,7 @@ impl<'a> MockContext<'a> {
 
 #[derive(Default)]
 struct MockStore {
-    mocks: RefCell<HashMap<TypeId, Rc<RefCell<Box<FnMut<(), Output=()>>>>>>,
+    mocks: RefCell<HashMap<TypeId, ErasedStoredMock>>,
 }
 
 impl MockStore {
@@ -269,16 +270,52 @@ impl MockStore {
         self.mocks.borrow_mut().remove(&id);
     }
 
-    unsafe fn add<I, O, M: FnMut<I, Output=MockResult<I, O>>>(&self, id: TypeId, mock: M) {
-        let boxed = Box::new(mock) as Box<FnMut<_, Output=_>>;
-        let real = Rc::new(RefCell::new(boxed));
-        let stored = transmute(real);
+    unsafe fn add<I, O>(&self, id: TypeId, mock: Box<FnMut<I, Output=MockResult<I, O>> + 'static>) {
+        let stored = StoredMock::new(mock).erase();
         self.mocks.borrow_mut().insert(id, stored);
     }
 
-    unsafe fn get<I, O>(&self, id: TypeId)
-            -> Option<Rc<RefCell<Box<FnMut<I, Output=MockResult<I, O>>>>>> {
-        let mock = self.mocks.borrow().get(&id).cloned();
-        transmute(mock)
+    unsafe fn get<I, O>(&self, id: TypeId) -> Option<StoredMock<I, O>> {
+        self.mocks.borrow().get(&id).cloned().map(|mock| mock.unerase())
+    }
+}
+
+#[derive(Clone)]
+struct StoredMock<I, O> {
+    mock: Rc<RefCell<Box<FnMut<I, Output=MockResult<I, O>>>>>
+}
+
+impl<I, O> StoredMock<I, O> {
+    fn new(mock: Box<FnMut<I, Output=MockResult<I, O>> + 'static>) -> Self {
+        StoredMock {
+            mock: Rc::new(RefCell::new(mock))
+        }
+    }
+
+    /// Guarantees that while mock is running calling its function never runs mock
+    fn call(&self, input: I) -> MockResult<I, O> {
+        match self.mock.try_borrow_mut() {
+            Ok(mut mock) => mock.call_mut(input),
+            Err(_) => MockResult::Continue(input),
+        }
+    }
+
+    fn erase(self) -> ErasedStoredMock {
+        unsafe {
+            ErasedStoredMock {
+                mock: transmute(self),
+            }
+        }
+    }
+}
+
+#[derive(Clone)]
+struct ErasedStoredMock {
+    mock: StoredMock<(), ()>,
+}
+
+impl ErasedStoredMock {
+    unsafe fn unerase<I, O>(self) -> StoredMock<I, O> {
+        transmute(self.mock)
     }
 }
