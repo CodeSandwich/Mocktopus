@@ -1,9 +1,8 @@
+use crate::mock_store::MockStore;
 use std::any::{Any, TypeId};
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::mem::transmute;
-use std::rc::Rc;
 
 /// Trait for setting up mocks
 ///
@@ -90,7 +89,6 @@ pub enum MockResult<T, O> {
 }
 
 thread_local!{
-    // static MOCK_STORE: RefCell<HashMap<TypeId, Rc<RefCell<Box<FnMut<(), Output=()>>>>>> = RefCell::new(HashMap::new())
     static MOCK_STORE: MockStore = MockStore::default()
 }
 
@@ -253,69 +251,5 @@ impl<'a> MockContext<'a> {
             .map(|entry| entry.1())
             .collect::<Vec<_>>();
         f()
-    }
-}
-
-#[derive(Default)]
-struct MockStore {
-    mocks: RefCell<HashMap<TypeId, ErasedStoredMock>>,
-}
-
-impl MockStore {
-    fn clear(&self) {
-        self.mocks.borrow_mut().clear()
-    }
-
-    fn clear_id(&self, id: TypeId) {
-        self.mocks.borrow_mut().remove(&id);
-    }
-
-    unsafe fn add<I, O>(&self, id: TypeId, mock: Box<FnMut<I, Output=MockResult<I, O>> + 'static>) {
-        let stored = StoredMock::new(mock).erase();
-        self.mocks.borrow_mut().insert(id, stored);
-    }
-
-    unsafe fn get<I, O>(&self, id: TypeId) -> Option<StoredMock<I, O>> {
-        self.mocks.borrow().get(&id).cloned().map(|mock| mock.unerase())
-    }
-}
-
-#[derive(Clone)]
-struct StoredMock<I, O> {
-    mock: Rc<RefCell<Box<FnMut<I, Output=MockResult<I, O>>>>>
-}
-
-impl<I, O> StoredMock<I, O> {
-    fn new(mock: Box<FnMut<I, Output=MockResult<I, O>> + 'static>) -> Self {
-        StoredMock {
-            mock: Rc::new(RefCell::new(mock))
-        }
-    }
-
-    /// Guarantees that while mock is running calling its function never runs mock
-    fn call(&self, input: I) -> MockResult<I, O> {
-        match self.mock.try_borrow_mut() {
-            Ok(mut mock) => mock.call_mut(input),
-            Err(_) => MockResult::Continue(input),
-        }
-    }
-
-    fn erase(self) -> ErasedStoredMock {
-        unsafe {
-            ErasedStoredMock {
-                mock: transmute(self),
-            }
-        }
-    }
-}
-
-#[derive(Clone)]
-struct ErasedStoredMock {
-    mock: StoredMock<(), ()>,
-}
-
-impl ErasedStoredMock {
-    unsafe fn unerase<I, O>(self) -> StoredMock<I, O> {
-        transmute(self.mock)
     }
 }
