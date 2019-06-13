@@ -319,31 +319,57 @@ mod clear_mocks {
     use super::*;
 
     #[mockable]
-    fn mockable_1() -> String {
-        "not mocked 1".to_string()
+    fn mockable_1() -> &'static str {
+        "not mocked 1"
     }
 
     #[mockable]
-    fn mockable_2() -> String {
-        "not mocked 2".to_string()
+    fn mockable_2() -> &'static str {
+        "not mocked 2"
     }
 
     #[test]
     fn when_clearing_mocks_original_function_operations_return() {
-        mockable_1.mock_safe(|| {
-            MockResult::Return("mocked 1".to_string())
-        });
-        mockable_2.mock_safe(|| {
-            MockResult::Return("mocked 2".to_string())
-        });
-
+        mockable_1.mock_safe(|| MockResult::Return("mocked 1"));
         assert_eq!("mocked 1", mockable_1());
-        assert_eq!("mocked 2", mockable_2());
+        assert_eq!("not mocked 2", mockable_2());
 
         clear_mocks();
 
         assert_eq!("not mocked 1", mockable_1());
         assert_eq!("not mocked 2", mockable_2());
+    }
+
+    #[test]
+    fn clearing_mocks_inside_context_clears_all_mocks() {
+        assert_eq!("not mocked 1", mockable_1());
+        mockable_1.mock_safe(|| MockResult::Return("mocked 1"));
+        assert_eq!("mocked 1", mockable_1());
+        MockContext::new()
+            .mock_safe(mockable_1, || MockResult::Return("mocked 1 context"))
+            .run(|| {
+                assert_eq!("mocked 1 context", mockable_1());
+                clear_mocks();
+                assert_eq!("not mocked 1", mockable_1());
+            });
+        assert_eq!("not mocked 1", mockable_1());
+    }
+
+    #[test]
+    fn clearing_mocks_inside_context_does_not_disrupt_context_cleanup() {
+        assert_eq!("not mocked 1", mockable_1());
+        mockable_1.mock_safe(|| MockResult::Return("mocked 1 pre"));
+        assert_eq!("mocked 1 pre", mockable_1());
+        MockContext::new()
+            .mock_safe(mockable_1, || MockResult::Return("mocked 1 context"))
+            .run(|| {
+                assert_eq!("mocked 1 context", mockable_1());
+                clear_mocks();
+                assert_eq!("not mocked 1", mockable_1());
+                mockable_1.mock_safe(|| MockResult::Return("mocked 1 post"));
+                assert_eq!("mocked 1 post", mockable_1());
+            });
+        assert_eq!("mocked 1 post", mockable_1());
     }
 }
 
@@ -351,17 +377,53 @@ mod clear_mock {
     use super::*;
 
     #[mockable]
-    fn mockable_1() -> i32 {
-        0
+    fn mockable_1() -> &'static str {
+        "not mocked 1"
+    }
+
+    #[mockable]
+    fn mockable_2() -> &'static str {
+        "not mocked 2"
     }
 
     #[test]
-    fn clearing_deregisters_the_mock() {
-        mockable_1.mock_safe(|| MockResult::Return(1));
-        assert_eq!(mockable_1(), 1);
+    fn clearing_mocked_deregisters_the_mock() {
+        mockable_1.mock_safe(|| MockResult::Return("mocked 1"));
+        mockable_2.mock_safe(|| MockResult::Return("mocked 2"));
+        assert_eq!("mocked 1", mockable_1());
+        assert_eq!("mocked 2", mockable_2());
 
         mockable_1.clear_mock();
-        assert_eq!(mockable_1(), 0);
+
+        assert_eq!("not mocked 1", mockable_1());
+        assert_eq!("mocked 2", mockable_2());
+    }
+
+    #[test]
+    fn clearing_not_mocked_does_nothing() {
+        mockable_2.mock_safe(|| MockResult::Return("mocked 2"));
+        assert_eq!("not mocked 1", mockable_1());
+        assert_eq!("mocked 2", mockable_2());
+
+        mockable_1.clear_mock();
+
+        assert_eq!("not mocked 1", mockable_1());
+        assert_eq!("mocked 2", mockable_2());
+    }
+
+    #[test]
+    fn clearing_mocks_inside_context_clears_mocks_in_all_contexts() {
+        assert_eq!("not mocked 1", mockable_1());
+        mockable_1.mock_safe(|| MockResult::Return("mocked 1"));
+        assert_eq!("mocked 1", mockable_1());
+        MockContext::new()
+            .mock_safe(mockable_1, || MockResult::Return("mocked 1 context"))
+            .run(|| {
+                assert_eq!("mocked 1 context", mockable_1());
+                mockable_1.clear_mock();
+                assert_eq!("not mocked 1", mockable_1());
+            });
+        assert_eq!("not mocked 1", mockable_1());
     }
 }
 
@@ -369,49 +431,94 @@ mod mock_context {
     use super::*;
 
     #[mockable]
-    fn mockable_1() -> i32 { 0 }
+    fn mockable_1() -> &'static str {
+        "not mocked 1"
+    }
 
-    #[test]
-    fn test_run_mocks_the_function() {
-        let mut x = 0;
-        MockContext::new()
-            .mock_safe(mockable_1, || {
-                x += 1;
-                MockResult::Return(1)
-            })
-            .run(|| {
-                assert_eq!(mockable_1(), 1);
-            });
-        assert_eq!(mockable_1(), 0);
-        assert_eq!(x, 1);
+    #[mockable]
+    fn mockable_2() -> &'static str {
+        "not mocked 2"
+    }
+
+    #[mockable]
+    fn mockable_string() -> String {
+        "not mocked".to_string()
     }
 
     #[test]
-    fn test_run_restores_the_function() {
+    fn context_mocks_mock_only_inside_run_closure() {
+        assert_eq!("not mocked 1", mockable_1());
+        assert_eq!("not mocked 2", mockable_2());
         MockContext::new()
-            .mock_safe(mockable_1, || MockResult::Return(1))
-            .run(|| {});
-        assert_eq!(mockable_1(), 0);
+            .mock_safe(mockable_1, || MockResult::Return("mocked 1"))
+            .run(|| {
+                assert_eq!("mocked 1", mockable_1());
+                assert_eq!("not mocked 2", mockable_2());
+            });
+        assert_eq!("not mocked 1", mockable_1());
+        assert_eq!("not mocked 2", mockable_2());
     }
 
     #[test]
-    fn test_run_no_mocks() {
+    fn context_mocks_with_no_mocks_have_no_effect() {
+        assert_eq!("not mocked 1", mockable_1());
         MockContext::new()
             .run(|| {
-                assert_eq!(mockable_1(), 0);
+                assert_eq!("not mocked 1", mockable_1());
             });
-        assert_eq!(mockable_1(), 0);
+        assert_eq!("not mocked 1", mockable_1());
     }
 
     #[test]
-    fn test_mock_the_same_function_multiple_times() {
+    fn context_mocks_with_multiple_mocks_of_the_same_function_use_only_last_mock() {
+        assert_eq!("not mocked 1", mockable_1());
         MockContext::new()
-            .mock_safe(mockable_1, || MockResult::Return(1))
-            .mock_safe(mockable_1, || MockResult::Return(2))
-            .mock_safe(mockable_1, || MockResult::Return(3))
+            .mock_safe(mockable_1, || MockResult::Return("mocked 1 A"))
+            .mock_safe(mockable_1, || MockResult::Return("mocked 1 B"))
+            .mock_safe(mockable_1, || MockResult::Return("mocked 1 C"))
             .run(|| {
-                assert_eq!(mockable_1(), 3);
+                assert_eq!("mocked 1 C", mockable_1());
             });
-        assert_eq!(mockable_1(), 0);
+        assert_eq!("not mocked 1", mockable_1());
+    }
+
+    #[test]
+    fn nested_context_mocks_shadow_outside_mocks_only_inside_run_closure() {
+        assert_eq!("not mocked 1", mockable_1());
+        assert_eq!("not mocked 2", mockable_2());
+        mockable_1.mock_safe(|| MockResult::Return("mocked 1"));
+        assert_eq!("mocked 1", mockable_1());
+        assert_eq!("not mocked 2", mockable_2());
+        MockContext::new()
+            .mock_safe(mockable_1, || MockResult::Return("mocked 1 context 1"))
+            .mock_safe(mockable_2, || MockResult::Return("mocked 2 context 1"))
+            .run(|| {
+                assert_eq!("mocked 1 context 1", mockable_1());
+                assert_eq!("mocked 2 context 1", mockable_2());
+                MockContext::new()
+                    .mock_safe(mockable_1, || MockResult::Return("mocked 1 context 2"))
+                    .run(|| {
+                        assert_eq!("mocked 1 context 2", mockable_1());
+                        assert_eq!("mocked 2 context 1", mockable_2());
+                    });
+                assert_eq!("mocked 1 context 1", mockable_1());
+                assert_eq!("mocked 2 context 1", mockable_2());
+            });
+        assert_eq!("mocked 1", mockable_1());
+        assert_eq!("not mocked 2", mockable_2());
+    }
+
+    #[test]
+    fn calling_function_with_shadowed_mock_from_inside_mock_closure_calls_shadowed_mock() {
+        assert_eq!("not mocked", mockable_string());
+        mockable_string.mock_safe(|| MockResult::Return(format!("{}, mocked", mockable_string())));
+        assert_eq!("not mocked, mocked", mockable_string());
+        MockContext::new()
+            .mock_safe(mockable_string,
+                || MockResult::Return(format!("{}, mocked context", mockable_string())))
+            .run(|| {
+                assert_eq!("not mocked, mocked, mocked context", mockable_string());
+            });
+        assert_eq!("not mocked, mocked", mockable_string());
     }
 }

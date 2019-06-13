@@ -1,9 +1,7 @@
+use crate::mock_store::{MockLayer, MockStore};
 use std::any::{Any, TypeId};
-use std::cell::RefCell;
-use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::mem::transmute;
-use std::rc::Rc;
 
 /// Trait for setting up mocks
 ///
@@ -90,55 +88,20 @@ pub enum MockResult<T, O> {
 }
 
 thread_local!{
-    static MOCK_STORE: RefCell<HashMap<TypeId, Rc<RefCell<Box<FnMut<(), Output=()>>>>>> = RefCell::new(HashMap::new())
+    static MOCK_STORE: MockStore = MockStore::default()
 }
 
 /// Clear all mocks in the ThreadLocal; only necessary if tests share threads
 pub fn clear_mocks() {
-    MOCK_STORE.with(|mock_ref_cell| {
-        mock_ref_cell.borrow_mut().clear();
-    });
-}
-
-struct ScopedMock<'a> {
-    phantom: PhantomData<&'a ()>,
-    id: TypeId,
-}
-
-impl<'a> ScopedMock<'a> {
-    unsafe fn new<T, O, M: Mockable<T, O> + 'a, F: FnMut<T, Output=MockResult<T, O>>>(
-        mockable: &M,
-        mock: F,
-    ) -> Self {
-        mockable.mock_raw(mock);
-        ScopedMock {
-            phantom: PhantomData,
-            id: mockable.get_mock_id(),
-        }
-    }
-}
-
-impl<'a> Drop for ScopedMock<'a> {
-    fn drop(&mut self) {
-        clear_id(self.id);
-    }
-}
-
-fn clear_id(id: TypeId) {
-    MOCK_STORE.with(|mock_ref_cell| {
-        mock_ref_cell.borrow_mut().remove(&id);
-    });
+    MOCK_STORE.with(|mock_store| mock_store.clear())
 }
 
 impl<T, O, F: FnOnce<T, Output=O>> Mockable<T, O> for F {
     unsafe fn mock_raw<M: FnMut<T, Output=MockResult<T, O>>>(&self, mock: M) {
         let id = self.get_mock_id();
-        MOCK_STORE.with(|mock_ref_cell| {
-            let real = Rc::new(RefCell::new(Box::new(mock) as Box<FnMut<_, Output=_>>));
-            let stored = transmute(real);
-            mock_ref_cell.borrow_mut()
-                .insert(id, stored);
-        })
+        let boxed = Box::new(mock) as Box::<FnMut<_, Output = _>>;
+        let static_boxed: Box<FnMut<T, Output = MockResult<T, O>> + 'static> = transmute(boxed);
+        MOCK_STORE.with(|mock_store| mock_store.add_to_thread_layer(id, static_boxed))
     }
 
     fn mock_safe<M: FnMut<T, Output=MockResult<T, O>> + 'static>(&self, mock: M) {
@@ -149,26 +112,13 @@ impl<T, O, F: FnOnce<T, Output=O>> Mockable<T, O> for F {
 
     fn clear_mock(&self) {
         let id = unsafe { self.get_mock_id() };
-        clear_id(id);
+        MOCK_STORE.with(|mock_store| mock_store.clear_id(id))
     }
 
     fn call_mock(&self, input: T) -> MockResult<T, O> {
         unsafe {
             let id = self.get_mock_id();
-            let rc_opt = MOCK_STORE.with(|mock_ref_cell|
-                mock_ref_cell.borrow()
-                    .get(&id)
-                    .cloned()
-            );
-            let stored_opt = rc_opt.as_ref()
-                .and_then(|rc| rc.try_borrow_mut().ok());
-            match stored_opt {
-                Some(mut stored) => {
-                    let real: &mut Box<FnMut<_, Output=_>> = transmute(&mut*stored);
-                    real.call_mut(input)
-                }
-                None => MockResult::Continue(input),
-            }
+            MOCK_STORE.with(|mock_store| mock_store.call(id, input))
         }
     }
 
@@ -223,7 +173,8 @@ impl<T, O, F: FnOnce<T, Output=O>> Mockable<T, O> for F {
 /// ```
 #[derive(Default)]
 pub struct MockContext<'a> {
-    planned_mocks: HashMap<TypeId, Box<FnOnce() -> ScopedMock<'a> + 'a>>,
+    mock_layer: MockLayer,
+    phantom_lifetime: PhantomData<&'a ()>,
 }
 
 impl<'a> MockContext<'a> {
@@ -236,20 +187,23 @@ impl<'a> MockContext<'a> {
     ///
     /// This function doesn't actually mock the function.  It registers it as a
     /// function that will be mocked when [`run`](#method.run) is called.
-    pub fn mock_safe<
-        Args,
-        Output,
-        M: Mockable<Args, Output> + 'a,
-        F: FnMut<Args, Output = MockResult<Args, Output>> + 'a,
-    >(
-        mut self,
-        mock: M,
-        body: F,
-    ) -> Self {
-        self.planned_mocks.insert(
-            unsafe { mock.get_mock_id() },
-            Box::new(move || unsafe { ScopedMock::new(&mock, body) }),
-        );
+    pub fn mock_safe<I, O, F, M>(self, mockable: F, mock: M) -> Self
+            where F: Mockable<I, O>, M: FnMut<I, Output = MockResult<I, O>> + 'a {
+        unsafe {
+            self.mock_raw(mockable, mock)
+        }
+    }
+
+    /// Set up a function to be mocked.
+    ///
+    /// This is an unsafe version of [`mock_safe`](#method.mock_safe),
+    /// without lifetime constraint on mock
+    pub unsafe fn mock_raw<I, O, F, M>(mut self, mockable: F, mock: M) -> Self
+            where F: Mockable<I, O>, M: FnMut<I, Output = MockResult<I, O>> {
+        let mock_box = Box::new(mock) as Box<FnMut<_, Output = _>>;
+        let mock_box_static: Box<FnMut<I, Output = MockResult<I, O>> + 'static>
+            = std::mem::transmute(mock_box);
+        self.mock_layer.add(mockable.get_mock_id(), mock_box_static);
         self
     }
 
@@ -262,11 +216,18 @@ impl<'a> MockContext<'a> {
     ///
     /// Register a function for mocking with [`mock_safe`](#method.mock_safe).
     pub fn run<T, F: FnOnce() -> T>(self, f: F) -> T {
-        let _scoped_mocks = self
-            .planned_mocks
-            .into_iter()
-            .map(|entry| entry.1())
-            .collect::<Vec<_>>();
+        MOCK_STORE.with(|mock_store| unsafe { mock_store.add_layer(self.mock_layer) });
+        let _mock_level_guard = MockLayerGuard;
         f()
+    }
+}
+
+struct MockLayerGuard;
+
+impl<'a> Drop for MockLayerGuard {
+    fn drop(&mut self) {
+        MOCK_STORE.with(|mock_store| unsafe {
+            mock_store.remove_layer()
+        });
     }
 }
