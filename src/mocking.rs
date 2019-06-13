@@ -130,7 +130,7 @@ impl<T, O, F: FnOnce<T, Output=O>> Mockable<T, O> for F {
         let id = self.get_mock_id();
         let boxed = Box::new(mock) as Box::<FnMut<_, Output = _>>;
         let static_boxed: Box<FnMut<T, Output = MockResult<T, O>> + 'static> = transmute(boxed);
-        MOCK_STORE.with(|mock_store| mock_store.add(id, static_boxed))
+        MOCK_STORE.with(|mock_store| mock_store.add_to_thread_layer(id, static_boxed))
     }
 
     fn mock_safe<M: FnMut<T, Output=MockResult<T, O>> + 'static>(&self, mock: M) {
@@ -147,11 +147,7 @@ impl<T, O, F: FnOnce<T, Output=O>> Mockable<T, O> for F {
     fn call_mock(&self, input: T) -> MockResult<T, O> {
         unsafe {
             let id = self.get_mock_id();
-            let mock_opt = MOCK_STORE.with(|mock_store| mock_store.get(id));
-            match mock_opt {
-                Some(mock) => mock.call(input),
-                None => MockResult::Continue(input),
-            }
+            MOCK_STORE.with(|mock_store| mock_store.call(id, input))
         }
     }
 
