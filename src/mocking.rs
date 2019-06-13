@@ -12,6 +12,8 @@ pub trait Mockable<T, O> {
 
     /// Core function for setting up mocks
     ///
+    /// Always consider using [mock_safe](#tymethod.mock_safe) or [MockContext](struct.MockContext.html).
+    ///
     /// The passed closure is called whenever the mocked function is called. Depending on variant of returned
     /// [MockResult](enum.MockResult.html) the mocked function continues to run or returns immediately.
     /// In case of continuation the function arguments can be modified or replaced.
@@ -130,7 +132,7 @@ impl<T, O, F: FnOnce<T, Output=O>> Mockable<T, O> for F {
 /// `MockContext` allows for safe capture of local variables.
 ///
 /// It does this by forcing only mocking the actual function while in the body
-/// of [`run`].
+/// of [run](#tymethod.run).
 ///
 /// # Examples
 ///
