@@ -1,3 +1,5 @@
+## 0.7.2 - 2019-06-14
+- Add MockContext (thank you @czipperz!)
 ## 0.7.1 - 2019-05-24
 - Add function for clearing all mocks (thank you @clinedome-work!)
 ## 0.7.0 - 2019-02-13

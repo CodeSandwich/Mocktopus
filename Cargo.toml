@@ -1,6 +1,6 @@
 [package]
 name = "mocktopus"
-version = "0.7.1"
+version = "0.7.2"
 authors = ["CodeSandwich <igor.zuk@protonmail.com>"]
 description = "Mocking framework for Rust"
 readme = "crates_io_readme.md"
