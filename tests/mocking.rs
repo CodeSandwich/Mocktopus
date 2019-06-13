@@ -358,18 +358,18 @@ mod clear_mocks {
     #[test]
     fn clearing_mocks_inside_context_does_not_disrupt_context_cleanup() {
         assert_eq!("not mocked 1", mockable_1());
-        mockable_1.mock_safe(|| MockResult::Return("mocked 1"));
-        assert_eq!("mocked 1", mockable_1());
+        mockable_1.mock_safe(|| MockResult::Return("mocked 1 pre"));
+        assert_eq!("mocked 1 pre", mockable_1());
         MockContext::new()
             .mock_safe(mockable_1, || MockResult::Return("mocked 1 context"))
             .run(|| {
                 assert_eq!("mocked 1 context", mockable_1());
                 clear_mocks();
                 assert_eq!("not mocked 1", mockable_1());
-                mockable_1.mock_safe(|| MockResult::Return("mocked 1"));
-                assert_eq!("mocked 1", mockable_1());
+                mockable_1.mock_safe(|| MockResult::Return("mocked 1 post"));
+                assert_eq!("mocked 1 post", mockable_1());
             });
-        assert_eq!("not mocked 1", mockable_1()); //TODO "mocked 1"
+        assert_eq!("mocked 1 post", mockable_1());
     }
 }
 
@@ -501,10 +501,10 @@ mod mock_context {
                         assert_eq!("mocked 1 context 2", mockable_1());
                         assert_eq!("mocked 2 context 1", mockable_2());
                     });
-                assert_eq!("not mocked 1", mockable_1());  //TODO "mocked 1 context 1"
+                assert_eq!("mocked 1 context 1", mockable_1());
                 assert_eq!("mocked 2 context 1", mockable_2());
             });
-        assert_eq!("not mocked 1", mockable_1()); //TODO "mocked 1"
+        assert_eq!("mocked 1", mockable_1());
         assert_eq!("not mocked 2", mockable_2());
     }
 
@@ -517,9 +517,8 @@ mod mock_context {
             .mock_safe(mockable_string,
                 || MockResult::Return(format!("{}, mocked context", mockable_string())))
             .run(|| {
-                assert_eq!("not mocked, mocked context", mockable_string());
-                //TODO "not mocked, mocked, mocked context"
+                assert_eq!("not mocked, mocked, mocked context", mockable_string());
             });
-        assert_eq!("not mocked", mockable_string()); //TODO "not mocked, mocked"
+        assert_eq!("not mocked, mocked", mockable_string());
     }
 }

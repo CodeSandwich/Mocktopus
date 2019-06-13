@@ -22,6 +22,8 @@ impl MockStore {
         }
     }
 
+    /// Layer will be in use as long as MockLayerGuard is alive
+    /// MockLayerGuards must always be dropped and always in reverse order of their creation
     pub unsafe fn add_layer(&self, layer: MockLayer) {
         self.layers.borrow_mut().push(layer)
     }
@@ -54,14 +56,16 @@ impl MockStore {
     }
 }
 
+//TODO tests
+// clear
+// clear id
+// add and remove layer
+//   inside mock closure
+
 impl Default for MockStore {
     fn default() -> Self {
-        unsafe {
-            let mock_store = MockStore {
-                layers: Default::default(),
-            };
-            mock_store.add_layer(MockLayer::default());
-            mock_store
+        MockStore {
+            layers: RefCell::new(vec![MockLayer::default()]),
         }
     }
 }
@@ -95,6 +99,18 @@ pub enum MockLayerResult<I, O> {
     Unhandled(I),
 }
 
+#[derive(Clone)]
+struct ErasedStoredMock {
+    mock: StoredMock<(), ()>,
+}
+
+impl ErasedStoredMock {
+    unsafe fn call<I, O>(self, input: I) -> MockLayerResult<I, O> {
+        let unerased: StoredMock<I, O> = transmute(self.mock);
+        unerased.call(input)
+    }
+}
+
 /// Guarantees that while mock is running it's not overwritten, destroyed, or called again
 #[derive(Clone)]
 struct StoredMock<I, O> {
@@ -108,7 +124,7 @@ impl<I, O> StoredMock<I, O> {
         }
     }
 
-    pub fn call(&self, input: I) -> MockLayerResult<I, O> {
+    fn call(&self, input: I) -> MockLayerResult<I, O> {
         match self.mock.try_borrow_mut() {
             Ok(mut mock) => MockLayerResult::Handled(mock.call_mut(input)),
             Err(_) => MockLayerResult::Unhandled(input),
@@ -121,17 +137,5 @@ impl<I, O> StoredMock<I, O> {
                 mock: transmute(self),
             }
         }
-    }
-}
-
-#[derive(Clone)]
-struct ErasedStoredMock {
-    mock: StoredMock<(), ()>,
-}
-
-impl ErasedStoredMock {
-    unsafe fn call<I, O>(&self, input: I) -> MockLayerResult<I, O> {
-        let unerased: StoredMock<I, O> = transmute(self.mock.clone());
-        unerased.call(input)
     }
 }
