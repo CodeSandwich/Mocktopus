@@ -33,7 +33,7 @@ impl MockStore {
     }
 
     pub unsafe fn add_to_thread_layer<I, O>(
-            &self, id: TypeId, mock: Box<FnMut<I, Output=MockResult<I, O>> + 'static>) {
+            &self, id: TypeId, mock: Box<dyn FnMut<I, Output=MockResult<I, O>> + 'static>) {
         self.layers.borrow_mut().first_mut().expect("Thread mock level missing").add(id, mock);
     }
 
@@ -84,7 +84,7 @@ impl MockLayer {
         self.mocks.remove(&id);
     }
 
-    pub unsafe fn add<I, O>(&mut self, id: TypeId, mock: Box<FnMut<I, Output=MockResult<I, O>> + 'static>) {
+    pub unsafe fn add<I, O>(&mut self, id: TypeId, mock: Box<dyn FnMut<I, Output=MockResult<I, O>> + 'static>) {
         let stored = StoredMock::new(mock).erase();
         self.mocks.insert(id, stored);
     }
@@ -114,11 +114,11 @@ impl ErasedStoredMock {
 /// Guarantees that while mock is running it's not overwritten, destroyed, or called again
 #[derive(Clone)]
 struct StoredMock<I, O> {
-    mock: Rc<RefCell<Box<FnMut<I, Output=MockResult<I, O>>>>>
+    mock: Rc<RefCell<Box<dyn FnMut<I, Output=MockResult<I, O>>>>>
 }
 
 impl<I, O> StoredMock<I, O> {
-    fn new(mock: Box<FnMut<I, Output=MockResult<I, O>> + 'static>) -> Self {
+    fn new(mock: Box<dyn FnMut<I, Output=MockResult<I, O>> + 'static>) -> Self {
         StoredMock {
             mock: Rc::new(RefCell::new(mock))
         }

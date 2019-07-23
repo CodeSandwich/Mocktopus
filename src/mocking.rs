@@ -101,8 +101,8 @@ pub fn clear_mocks() {
 impl<T, O, F: FnOnce<T, Output=O>> Mockable<T, O> for F {
     unsafe fn mock_raw<M: FnMut<T, Output=MockResult<T, O>>>(&self, mock: M) {
         let id = self.get_mock_id();
-        let boxed = Box::new(mock) as Box::<FnMut<_, Output = _>>;
-        let static_boxed: Box<FnMut<T, Output = MockResult<T, O>> + 'static> = transmute(boxed);
+        let boxed = Box::new(mock) as Box::<dyn FnMut<_, Output = _>>;
+        let static_boxed: Box<dyn FnMut<T, Output = MockResult<T, O>> + 'static> = transmute(boxed);
         MOCK_STORE.with(|mock_store| mock_store.add_to_thread_layer(id, static_boxed))
     }
 
@@ -202,8 +202,8 @@ impl<'a> MockContext<'a> {
     /// without lifetime constraint on mock
     pub unsafe fn mock_raw<I, O, F, M>(mut self, mockable: F, mock: M) -> Self
             where F: Mockable<I, O>, M: FnMut<I, Output = MockResult<I, O>> {
-        let mock_box = Box::new(mock) as Box<FnMut<_, Output = _>>;
-        let mock_box_static: Box<FnMut<I, Output = MockResult<I, O>> + 'static>
+        let mock_box = Box::new(mock) as Box<dyn FnMut<_, Output = _>>;
+        let mock_box_static: Box<dyn FnMut<I, Output = MockResult<I, O>> + 'static>
             = std::mem::transmute(mock_box);
         self.mock_layer.add(mockable.get_mock_id(), mock_box_static);
         self
