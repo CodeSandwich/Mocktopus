@@ -1,3 +1,5 @@
+## 0.7.3 - 2019-07-23
+- Fix warnings and UB on newer compilers
 ## 0.7.2 - 2019-06-14
 - Add MockContext (thank you @czipperz!)
 ## 0.7.1 - 2019-05-24
