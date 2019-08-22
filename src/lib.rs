@@ -333,3 +333,5 @@ pub mod macros {
 }
 
 mod mock_store;
+
+mod new_api;
