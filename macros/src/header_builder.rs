@@ -120,8 +120,7 @@ fn write_extract_args<T>(f: &mut Formatter, fn_args: &Punctuated<FnArg, T>) -> R
     }
     write!(f, "unsafe {{ (")?;
     for fn_arg_name in iter_fn_arg_names(fn_args) {
-        write!(f, "{}::mem::replace(&mut *(&{} as *const _ as *mut _), {}::mem::zeroed()), ",
-               STD_CRATE_NAME, fn_arg_name, STD_CRATE_NAME)?;
+        write!(f, "{}::ptr::read(&{} as *const _), ", STD_CRATE_NAME, fn_arg_name)?;
     }
     write!(f, ") }}")
 }
