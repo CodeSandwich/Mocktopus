@@ -1,3 +1,5 @@
+## 0.7.4 - 2019-11-17
+- Fix UB while copying function input parameters (thank you @artemii235!)
 ## 0.7.3 - 2019-07-23
 - Fix warnings and UB on newer compilers
 ## 0.7.2 - 2019-06-14
