@@ -142,7 +142,7 @@ fn write_extract_args<T>(f: &mut Formatter, fn_args: &Punctuated<FnArg, T>) -> R
     for fn_arg_name in iter_fn_arg_names(fn_args) {
         write!(
             f,
-            "{}::ptr::read(&{} as *const _), ",
+            "{}::mem::transmute_copy(&{}), ",
             STD_CRATE_NAME, fn_arg_name
         )?;
     }
