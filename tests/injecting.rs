@@ -21,9 +21,7 @@ mod injector_injects_annotated_fns {
 
     #[test]
     fn when_mocked_then_runs_mock() {
-        unsafe {
-            function.mock_raw(|| MockResult::Return("mocked"))
-        }
+        unsafe { function.mock_raw(|| MockResult::Return("mocked")) }
 
         assert_eq!("mocked", function());
     }
@@ -48,9 +46,7 @@ mod injector_injects_annotated_impl_blocks {
 
     #[test]
     fn when_mocked_then_runs_mock() {
-        unsafe {
-            Struct::function.mock_raw(|| MockResult::Return("mocked"))
-        }
+        unsafe { Struct::function.mock_raw(|| MockResult::Return("mocked")) }
 
         assert_eq!("mocked", Struct::function());
     }
@@ -68,9 +64,7 @@ mod injector_injects_annotated_traits {
 
     struct Struct;
 
-    impl Trait for Struct {
-
-    }
+    impl Trait for Struct {}
 
     #[test]
     fn when_not_mocked_then_runs_normally() {
@@ -79,9 +73,7 @@ mod injector_injects_annotated_traits {
 
     #[test]
     fn when_mocked_then_runs_mock() {
-        unsafe {
-            Struct::function.mock_raw(|| MockResult::Return("mocked"))
-        }
+        unsafe { Struct::function.mock_raw(|| MockResult::Return("mocked")) }
 
         assert_eq!("mocked", Struct::function());
     }
@@ -110,9 +102,7 @@ mod injector_injects_annotated_items {
 
         #[test]
         fn when_mocked_then_runs_mock() {
-            unsafe {
-                module::function.mock_raw(|| MockResult::Return("mocked"))
-            }
+            unsafe { module::function.mock_raw(|| MockResult::Return("mocked")) }
 
             assert_eq!("mocked", module::function());
         }
@@ -141,17 +131,15 @@ mod injector_injects_annotated_items {
 
         #[test]
         fn when_mocked_then_runs_mock() {
-            unsafe {
-                Struct::function.mock_raw(|| MockResult::Return("mocked"))
-            }
+            unsafe { Struct::function.mock_raw(|| MockResult::Return("mocked")) }
 
             assert_eq!("mocked", Struct::function());
         }
     }
 
     mod injects_traits {
-        use super::*;
         use self::module::Trait;
+        use super::*;
 
         #[mockable]
         mod module {
@@ -164,9 +152,7 @@ mod injector_injects_annotated_items {
 
         struct Struct;
 
-        impl Trait for Struct {
-
-        }
+        impl Trait for Struct {}
 
         #[test]
         fn when_not_mocked_then_runs_normally() {
@@ -175,9 +161,7 @@ mod injector_injects_annotated_items {
 
         #[test]
         fn when_mocked_then_runs_mock() {
-            unsafe {
-                Struct::function.mock_raw(|| MockResult::Return("mocked"))
-            }
+            unsafe { Struct::function.mock_raw(|| MockResult::Return("mocked")) }
 
             assert_eq!("mocked", Struct::function());
         }
@@ -202,9 +186,7 @@ mod injector_injects_annotated_items {
 
         #[test]
         fn when_mocked_then_runs_mock() {
-            unsafe {
-                module::module::function.mock_raw(|| MockResult::Return("mocked"))
-            }
+            unsafe { module::module::function.mock_raw(|| MockResult::Return("mocked")) }
 
             assert_eq!("mocked", module::module::function());
         }
@@ -274,9 +256,7 @@ mod injector_does_not_inject_items_twice {
 
         #[test]
         fn when_mocked_then_runs_mock_once() {
-            unsafe {
-                MockedStruct::mocked_fn.mock_raw(|x| MockResult::Continue((x + 1,)))
-            }
+            unsafe { MockedStruct::mocked_fn.mock_raw(|x| MockResult::Continue((x + 1,))) }
 
             assert_eq!(4, MockedStruct::mocked_fn(1));
         }
@@ -295,9 +275,7 @@ mod injector_does_not_inject_items_twice {
 
         struct Struct;
 
-        impl MockedTrait for Struct {
-
-        }
+        impl MockedTrait for Struct {}
 
         #[test]
         fn when_not_mocked_then_runs_normally() {
@@ -306,9 +284,7 @@ mod injector_does_not_inject_items_twice {
 
         #[test]
         fn when_mocked_then_runs_mock_once() {
-            unsafe {
-                Struct::mocked_fn.mock_raw(|x| MockResult::Continue((x + 1,)))
-            }
+            unsafe { Struct::mocked_fn.mock_raw(|x| MockResult::Continue((x + 1,))) }
 
             assert_eq!(4, Struct::mocked_fn(1));
         }
@@ -332,9 +308,7 @@ mod injector_does_not_inject_items_twice {
 
         #[test]
         fn when_mocked_then_runs_mock() {
-            unsafe {
-                mocked_mod::mocked_fn.mock_raw(|x| MockResult::Continue((x + 1,)))
-            }
+            unsafe { mocked_mod::mocked_fn.mock_raw(|x| MockResult::Continue((x + 1,))) }
 
             assert_eq!(4, mocked_mod::mocked_fn(1));
         }
@@ -392,17 +366,15 @@ mod injector_does_not_inject_items_twice {
 
         #[test]
         fn when_mocked_then_runs_mock_once() {
-            unsafe {
-                MockedStruct::mocked_fn.mock_raw(|x| MockResult::Continue((x + 1,)))
-            }
+            unsafe { MockedStruct::mocked_fn.mock_raw(|x| MockResult::Continue((x + 1,))) }
 
             assert_eq!(4, MockedStruct::mocked_fn(1));
         }
     }
 
     mod injects_implicitly_double_annotated_traits_once {
-        use super::*;
         use self::mocked_mod::MockedTrait;
+        use super::*;
 
         #[mockable]
         mod mocked_mod {
@@ -418,9 +390,7 @@ mod injector_does_not_inject_items_twice {
 
         struct Struct;
 
-        impl MockedTrait for Struct {
-
-        }
+        impl MockedTrait for Struct {}
 
         #[test]
         fn when_not_mocked_then_runs_normally() {
@@ -429,9 +399,7 @@ mod injector_does_not_inject_items_twice {
 
         #[test]
         fn when_mocked_then_runs_mock_once() {
-            unsafe {
-                Struct::mocked_fn.mock_raw(|x| MockResult::Continue((x + 1,)))
-            }
+            unsafe { Struct::mocked_fn.mock_raw(|x| MockResult::Continue((x + 1,))) }
 
             assert_eq!(4, Struct::mocked_fn(1));
         }
@@ -523,17 +491,15 @@ mod injector_does_not_inject_not_mockable_items {
 
         #[test]
         fn when_mocked_then_runs_normally() {
-            unsafe {
-                MockedStruct::not_mocked_fn.mock_raw(|| MockResult::Return("mocked"))
-            }
+            unsafe { MockedStruct::not_mocked_fn.mock_raw(|| MockResult::Return("mocked")) }
 
             assert_eq!("not mocked", MockedStruct::not_mocked_fn());
         }
     }
 
     mod does_not_injects_not_mockable_trait {
-        use super::*;
         use self::mocked_mod::MockedTrait;
+        use super::*;
 
         #[mockable]
         mod mocked_mod {
@@ -549,9 +515,7 @@ mod injector_does_not_inject_not_mockable_items {
 
         struct Struct;
 
-        impl MockedTrait for Struct {
-
-        }
+        impl MockedTrait for Struct {}
 
         #[test]
         fn when_not_mocked_then_runs_normally() {
@@ -560,9 +524,7 @@ mod injector_does_not_inject_not_mockable_items {
 
         #[test]
         fn when_mocked_then_runs_normally() {
-            unsafe {
-                Struct::not_mocked_fn.mock_raw(|| MockResult::Return("mocked"))
-            }
+            unsafe { Struct::not_mocked_fn.mock_raw(|| MockResult::Return("mocked")) }
 
             assert_eq!("not mocked", Struct::not_mocked_fn());
         }
@@ -632,7 +594,7 @@ mod injector_ignores_unsafe_fns {
 
     #[test]
     fn when_not_mocked_then_runs_normally() {
-        assert_eq!("not mocked", unsafe { function() } );
+        assert_eq!("not mocked", unsafe { function() });
     }
 
     // Trait Mockable is not implemented for unsafe functions
@@ -652,7 +614,7 @@ mod injector_ignores_unsafe_impls {
 
     #[test]
     fn when_not_mocked_then_runs_normally() {
-        assert_eq!("not mocked", unsafe { Struct::function() } );
+        assert_eq!("not mocked", unsafe { Struct::function() });
     }
 
     // Trait Mockable is not implemented for unsafe functions
@@ -666,7 +628,7 @@ mod injector_does_not_inject_macro_generated_fns {
             pub fn macro_generated_fn() -> u32 {
                 1
             }
-        }
+        };
     }
 
     #[mockable]
@@ -918,9 +880,7 @@ mod injecting_structs_with_drop_does_nothing {
     #[mockable]
     impl Drop for Struct {
         fn drop(&mut self) {
-            unsafe {
-                DROPPED = "dropped"
-            }
+            unsafe { DROPPED = "dropped" }
         }
     }
 

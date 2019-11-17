@@ -316,8 +316,10 @@
 //! }
 //! ```
 //! The vector can store `MockResult`s for more complex mocking.
-#![doc(html_logo_url = "https://raw.githubusercontent.com/CodeSandwich/mocktopus/master/logo.png",
-    html_favicon_url = "https://raw.githubusercontent.com/CodeSandwich/mocktopus/master/logo.png")]
+#![doc(
+    html_logo_url = "https://raw.githubusercontent.com/CodeSandwich/mocktopus/master/logo.png",
+    html_favicon_url = "https://raw.githubusercontent.com/CodeSandwich/mocktopus/master/logo.png"
+)]
 
 extern crate mocktopus_macros;
 

@@ -56,20 +56,23 @@ mod mocks_do_not_leak_between_tests {
         }
     }
 
-    generate_tests!(t00, t01, t02, t03, t04, t05, t06, t07, t08, t09, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19);
-    generate_tests!(t20, t21, t22, t23, t24, t25, t26, t27, t28, t29, t30, t31, t32, t33, t34, t35, t36, t37, t38, t39);
-    generate_tests!(t40, t41, t42, t43, t44, t45, t46, t47, t48, t49, t50, t51, t52, t53, t54, t55, t56, t57, t58, t59);
-    generate_tests!(t60, t61, t62, t63, t64, t65, t66, t67, t68, t69, t70, t71, t72, t73, t74, t75, t76, t77, t78, t79);
-    generate_tests!(t80, t81, t82, t83, t84, t85, t86, t87, t88, t89, t90, t91, t92, t93, t94, t95, t96, t97, t98, t99);
+    generate_tests!(t00, t01, t02, t03, t04, t05, t06, t07, t08, t09);
+    generate_tests!(t10, t11, t12, t13, t14, t15, t16, t17, t18, t19);
+    generate_tests!(t20, t21, t22, t23, t24, t25, t26, t27, t28, t29);
+    generate_tests!(t30, t31, t32, t33, t34, t35, t36, t37, t38, t39);
+    generate_tests!(t40, t41, t42, t43, t44, t45, t46, t47, t48, t49);
+    generate_tests!(t50, t51, t52, t53, t54, t55, t56, t57, t58, t59);
+    generate_tests!(t60, t61, t62, t63, t64, t65, t66, t67, t68, t69);
+    generate_tests!(t70, t71, t72, t73, t74, t75, t76, t77, t78, t79);
+    generate_tests!(t80, t81, t82, t83, t84, t85, t86, t87, t88, t89);
+    generate_tests!(t90, t91, t92, t93, t94, t95, t96, t97, t98, t99);
 }
 
 mod panicking_inside_mock_is_safe {
     use super::*;
 
     #[mockable]
-    fn function(_has_drop: String) {
-
-    }
+    fn function(_has_drop: String) {}
 
     #[test]
     #[should_panic]
@@ -146,15 +149,11 @@ mod mocking_trait_default_for_struct_does_not_mock_same_default_for_another_stru
 
     struct Struct1;
 
-    impl Trait for Struct1 {
-
-    }
+    impl Trait for Struct1 {}
 
     struct Struct2;
 
-    impl Trait for Struct2 {
-
-    }
+    impl Trait for Struct2 {}
 
     #[test]
     fn when_not_mocked_then_both_run_normally() {
@@ -164,9 +163,7 @@ mod mocking_trait_default_for_struct_does_not_mock_same_default_for_another_stru
 
     #[test]
     fn when_mocked_for_one_then_runs_mock_for_it_and_runs_normally_for_other() {
-        unsafe {
-            Struct1::function.mock_raw(|| MockResult::Return("mocked"))
-        }
+        unsafe { Struct1::function.mock_raw(|| MockResult::Return("mocked")) }
 
         assert_eq!("mocked", Struct1::function());
         assert_eq!("not mocked", Struct2::function());
@@ -222,14 +219,12 @@ mod calling_mocked_function_inside_mock_closure {
     #[test]
     fn when_calling_itself_then_does_not_run_mock() {
         let mut first_call = true;
-        mockable_1.mock_safe(move || {
-            match first_call {
-                true => {
-                    first_call = false;
-                    MockResult::Return(format!("mocked 1 {}", mockable_1()))
-                },
-                false => panic!("Mock called second time"),
+        mockable_1.mock_safe(move || match first_call {
+            true => {
+                first_call = false;
+                MockResult::Return(format!("mocked 1 {}", mockable_1()))
             }
+            false => panic!("Mock called second time"),
         });
 
         assert_eq!("mocked 1 not mocked 1", mockable_1());
@@ -462,10 +457,9 @@ mod mock_context {
     #[test]
     fn context_mocks_with_no_mocks_have_no_effect() {
         assert_eq!("not mocked 1", mockable_1());
-        MockContext::new()
-            .run(|| {
-                assert_eq!("not mocked 1", mockable_1());
-            });
+        MockContext::new().run(|| {
+            assert_eq!("not mocked 1", mockable_1());
+        });
         assert_eq!("not mocked 1", mockable_1());
     }
 
@@ -514,8 +508,9 @@ mod mock_context {
         mockable_string.mock_safe(|| MockResult::Return(format!("{}, mocked", mockable_string())));
         assert_eq!("not mocked, mocked", mockable_string());
         MockContext::new()
-            .mock_safe(mockable_string,
-                || MockResult::Return(format!("{}, mocked context", mockable_string())))
+            .mock_safe(mockable_string, || {
+                MockResult::Return(format!("{}, mocked context", mockable_string()))
+            })
             .run(|| {
                 assert_eq!("not mocked, mocked, mocked context", mockable_string());
             });

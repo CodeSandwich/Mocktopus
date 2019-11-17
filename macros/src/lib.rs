@@ -1,17 +1,18 @@
 //! [Mocktopus](https://docs.rs/mocktopus) procedural macros making items mockable
-#![doc(html_logo_url = "https://raw.githubusercontent.com/CodeSandwich/mocktopus/master/logo.png",
-    html_favicon_url = "https://raw.githubusercontent.com/CodeSandwich/mocktopus/master/logo.png")]
-
+#![doc(
+    html_logo_url = "https://raw.githubusercontent.com/CodeSandwich/mocktopus/master/logo.png",
+    html_favicon_url = "https://raw.githubusercontent.com/CodeSandwich/mocktopus/master/logo.png"
+)]
 #![feature(proc_macro_diagnostic)]
 
 extern crate proc_macro;
 extern crate proc_macro2;
-extern crate syn;
 extern crate quote;
+extern crate syn;
 
 mod display_delegate;
-mod item_injector;
 mod header_builder;
+mod item_injector;
 
 use proc_macro::{Span, TokenStream};
 use quote::ToTokens;
@@ -204,4 +205,3 @@ pub fn mockable(_: TokenStream, token_stream: TokenStream) -> TokenStream {
 pub fn not_mockable(_: TokenStream, token_stream: TokenStream) -> TokenStream {
     token_stream
 }
-

@@ -9,7 +9,6 @@ use std::mem::transmute;
 ///
 /// Note: methods have any effect only if called on functions [annotated as mockable](https://docs.rs/mocktopus_macros).
 pub trait Mockable<T, O> {
-
     /// Core function for setting up mocks
     ///
     /// Always consider using [mock_safe](#tymethod.mock_safe) or [MockContext](struct.MockContext.html).
@@ -43,7 +42,7 @@ pub trait Mockable<T, O> {
     ///     assert_eq!("mocked", get_string(&Context::default()));
     /// }
     /// ```
-    unsafe fn mock_raw<M: FnMut<T, Output=MockResult<T, O>>>(&self, mock: M);
+    unsafe fn mock_raw<M: FnMut<T, Output = MockResult<T, O>>>(&self, mock: M);
 
     /// A safe variant of [mock_raw](#tymethod.mock_raw) for static closures
     ///
@@ -63,7 +62,7 @@ pub trait Mockable<T, O> {
     ///     assert_eq!("mocked", get_string());
     /// }
     /// ```
-    fn mock_safe<M: FnMut<T, Output=MockResult<T, O>> + 'static>(&self, mock: M);
+    fn mock_safe<M: FnMut<T, Output = MockResult<T, O>> + 'static>(&self, mock: M);
 
     /// Stop mocking this function.
     ///
@@ -89,7 +88,7 @@ pub enum MockResult<T, O> {
     Return(O),
 }
 
-thread_local!{
+thread_local! {
     static MOCK_STORE: MockStore = MockStore::default()
 }
 
@@ -98,18 +97,16 @@ pub fn clear_mocks() {
     MOCK_STORE.with(|mock_store| mock_store.clear())
 }
 
-impl<T, O, F: FnOnce<T, Output=O>> Mockable<T, O> for F {
-    unsafe fn mock_raw<M: FnMut<T, Output=MockResult<T, O>>>(&self, mock: M) {
+impl<T, O, F: FnOnce<T, Output = O>> Mockable<T, O> for F {
+    unsafe fn mock_raw<M: FnMut<T, Output = MockResult<T, O>>>(&self, mock: M) {
         let id = self.get_mock_id();
-        let boxed = Box::new(mock) as Box::<dyn FnMut<_, Output = _>>;
+        let boxed = Box::new(mock) as Box<dyn FnMut<_, Output = _>>;
         let static_boxed: Box<dyn FnMut<T, Output = MockResult<T, O>> + 'static> = transmute(boxed);
         MOCK_STORE.with(|mock_store| mock_store.add_to_thread_layer(id, static_boxed))
     }
 
-    fn mock_safe<M: FnMut<T, Output=MockResult<T, O>> + 'static>(&self, mock: M) {
-        unsafe {
-            self.mock_raw(mock)
-        }
+    fn mock_safe<M: FnMut<T, Output = MockResult<T, O>> + 'static>(&self, mock: M) {
+        unsafe { self.mock_raw(mock) }
     }
 
     fn clear_mock(&self) {
@@ -125,7 +122,7 @@ impl<T, O, F: FnOnce<T, Output=O>> Mockable<T, O> for F {
     }
 
     unsafe fn get_mock_id(&self) -> TypeId {
-        (||()).type_id()
+        (|| ()).type_id()
     }
 }
 
@@ -190,10 +187,11 @@ impl<'a> MockContext<'a> {
     /// This function doesn't actually mock the function.  It registers it as a
     /// function that will be mocked when [`run`](#method.run) is called.
     pub fn mock_safe<I, O, F, M>(self, mockable: F, mock: M) -> Self
-            where F: Mockable<I, O>, M: FnMut<I, Output = MockResult<I, O>> + 'a {
-        unsafe {
-            self.mock_raw(mockable, mock)
-        }
+    where
+        F: Mockable<I, O>,
+        M: FnMut<I, Output = MockResult<I, O>> + 'a,
+    {
+        unsafe { self.mock_raw(mockable, mock) }
     }
 
     /// Set up a function to be mocked.
@@ -201,10 +199,13 @@ impl<'a> MockContext<'a> {
     /// This is an unsafe version of [`mock_safe`](#method.mock_safe),
     /// without lifetime constraint on mock
     pub unsafe fn mock_raw<I, O, F, M>(mut self, mockable: F, mock: M) -> Self
-            where F: Mockable<I, O>, M: FnMut<I, Output = MockResult<I, O>> {
+    where
+        F: Mockable<I, O>,
+        M: FnMut<I, Output = MockResult<I, O>>,
+    {
         let mock_box = Box::new(mock) as Box<dyn FnMut<_, Output = _>>;
-        let mock_box_static: Box<dyn FnMut<I, Output = MockResult<I, O>> + 'static>
-            = std::mem::transmute(mock_box);
+        let mock_box_static: Box<dyn FnMut<I, Output = MockResult<I, O>> + 'static> =
+            std::mem::transmute(mock_box);
         self.mock_layer.add(mockable.get_mock_id(), mock_box_static);
         self
     }
@@ -228,8 +229,6 @@ struct MockLayerGuard;
 
 impl<'a> Drop for MockLayerGuard {
     fn drop(&mut self) {
-        MOCK_STORE.with(|mock_store| unsafe {
-            mock_store.remove_layer()
-        });
+        MOCK_STORE.with(|mock_store| unsafe { mock_store.remove_layer() });
     }
 }

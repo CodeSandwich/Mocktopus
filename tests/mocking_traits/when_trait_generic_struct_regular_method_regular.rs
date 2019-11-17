@@ -41,7 +41,8 @@ mod and_method_is_static {
     #[test]
     fn and_continue_mocked_then_runs_with_modified_args() {
         unsafe {
-            <Struct as Trait<char>>::static_method.mock_raw(|a, b| MockResult::Continue((!a, b.to_ascii_uppercase())));
+            <Struct as Trait<char>>::static_method
+                .mock_raw(|a, b| MockResult::Continue((!a, b.to_ascii_uppercase())));
         }
 
         assert_eq!("false A", Struct::static_method(true, 'a'));
@@ -51,7 +52,8 @@ mod and_method_is_static {
     #[test]
     fn and_return_mocked_then_returns_mocking_result() {
         unsafe {
-            <Struct as Trait<char>>::static_method.mock_raw(|a, b| MockResult::Return(format!("mocked {} {}", a, b), ));
+            <Struct as Trait<char>>::static_method
+                .mock_raw(|a, b| MockResult::Return(format!("mocked {} {}", a, b)));
         }
 
         assert_eq!("mocked true a", Struct::static_method(true, 'a'));
@@ -73,8 +75,8 @@ mod and_method_is_ref_method {
         let struct_2 = Struct(2);
         let struct_3 = Struct(3);
         unsafe {
-            <Struct as Trait<char>>::ref_method.mock_raw(|_, b, c|
-                MockResult::Continue((&struct_3, !b, c.to_ascii_uppercase())));
+            <Struct as Trait<char>>::ref_method
+                .mock_raw(|_, b, c| MockResult::Continue((&struct_3, !b, c.to_ascii_uppercase())));
         }
 
         assert_eq!("3 false A", struct_2.ref_method(true, 'a'));
@@ -87,8 +89,8 @@ mod and_method_is_ref_method {
     fn and_return_mocked_then_returns_mocking_result() {
         let struct_2 = Struct(2);
         unsafe {
-            <Struct as Trait<char>>::ref_method.mock_raw(|a, b, c|
-                MockResult::Return(format!("mocked {} {} {}", a.0, b, c), ));
+            <Struct as Trait<char>>::ref_method
+                .mock_raw(|a, b, c| MockResult::Return(format!("mocked {} {} {}", a.0, b, c)));
         }
 
         assert_eq!("mocked 2 true a", struct_2.ref_method(true, 'a'));
@@ -117,8 +119,9 @@ mod and_method_is_ref_mut_method {
         let struct_3 = Struct(3);
         let mut struct_4 = Struct(4);
         unsafe {
-            <Struct as Trait<char>>::ref_mut_method.mock_raw(|_, b, c|
-                MockResult::Continue((as_mut(&struct_3), !b, c.to_ascii_uppercase())));
+            <Struct as Trait<char>>::ref_mut_method.mock_raw(|_, b, c| {
+                MockResult::Continue((as_mut(&struct_3), !b, c.to_ascii_uppercase()))
+            });
         }
 
         assert_eq!("6 false A", struct_2.ref_mut_method(true, 'a'));
@@ -133,8 +136,8 @@ mod and_method_is_ref_mut_method {
         let mut struct_2 = Struct(2);
         let mut struct_4 = Struct(4);
         unsafe {
-            <Struct as Trait<char>>::ref_mut_method.mock_raw(|a, b, c|
-                MockResult::Return(format!("mocked {} {} {}", a.0, b, c), ));
+            <Struct as Trait<char>>::ref_mut_method
+                .mock_raw(|a, b, c| MockResult::Return(format!("mocked {} {} {}", a.0, b, c)));
         }
 
         assert_eq!("mocked 2 true a", struct_2.ref_mut_method(true, 'a'));
@@ -156,8 +159,9 @@ mod and_method_is_val_method {
     #[test]
     fn and_continue_mocked_then_runs_with_modified_args() {
         unsafe {
-            <Struct as Trait<char>>::val_method.mock_raw(move |_, b, c|
-                MockResult::Continue((Struct(3), !b, c.to_ascii_uppercase())));
+            <Struct as Trait<char>>::val_method.mock_raw(move |_, b, c| {
+                MockResult::Continue((Struct(3), !b, c.to_ascii_uppercase()))
+            });
         }
 
         assert_eq!("3 false A", Struct(2).val_method(true, 'a'));
@@ -167,8 +171,8 @@ mod and_method_is_val_method {
     #[test]
     fn and_return_mocked_then_returns_mocking_result() {
         unsafe {
-            <Struct as Trait<char>>::val_method.mock_raw(|a, b, c|
-                MockResult::Return(format!("mocked {} {} {}", a.0, b, c), ));
+            <Struct as Trait<char>>::val_method
+                .mock_raw(|a, b, c| MockResult::Return(format!("mocked {} {} {}", a.0, b, c)));
         }
 
         assert_eq!("mocked 2 true a", Struct(2).val_method(true, 'a'));

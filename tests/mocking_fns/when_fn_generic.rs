@@ -24,7 +24,7 @@ fn and_continue_mocked_then_runs_with_modified_args_for_mocked_type_only() {
 #[test]
 fn and_return_mocked_then_returns_mocking_result_for_mocked_type_only() {
     unsafe {
-        function::<f32>.mock_raw(|a, b| MockResult::Return(format!("mocked {} {}", a, b),));
+        function::<f32>.mock_raw(|a, b| MockResult::Return(format!("mocked {} {}", a, b)));
     }
 
     assert_eq!("mocked true 2.5", function(true, 2.5f32));
