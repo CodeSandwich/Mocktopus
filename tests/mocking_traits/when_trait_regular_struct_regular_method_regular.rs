@@ -40,7 +40,7 @@ mod and_method_is_static {
     #[test]
     fn and_continue_mocked_then_runs_with_modified_args() {
         unsafe {
-            Struct::static_method.mock_raw(|a| MockResult::Continue((!a, )));
+            Struct::static_method.mock_raw(|a| MockResult::Continue((!a,)));
         }
 
         assert_eq!("false", Struct::static_method(true));
@@ -49,7 +49,7 @@ mod and_method_is_static {
     #[test]
     fn and_return_mocked_then_returns_mocking_result() {
         unsafe {
-            Struct::static_method.mock_raw(|a| MockResult::Return(format!("mocked {}", a), ));
+            Struct::static_method.mock_raw(|a| MockResult::Return(format!("mocked {}", a)));
         }
 
         assert_eq!("mocked true", Struct::static_method(true));
@@ -81,7 +81,7 @@ mod and_method_is_ref_method {
     fn and_return_mocked_then_returns_mocking_result() {
         let struct_2 = Struct(2);
         unsafe {
-            Struct::ref_method.mock_raw(|a, b| MockResult::Return(format!("mocked {} {}", a.0, b), ));
+            Struct::ref_method.mock_raw(|a, b| MockResult::Return(format!("mocked {} {}", a.0, b)));
         }
 
         assert_eq!("mocked 2 true", struct_2.ref_method(true));
@@ -117,7 +117,8 @@ mod and_method_is_ref_mut_method {
     fn and_return_mocked_then_returns_mocking_result() {
         let mut struct_2 = Struct(2);
         unsafe {
-            Struct::ref_mut_method.mock_raw(|a, b| MockResult::Return(format!("mocked {} {}", a.0, b), ));
+            Struct::ref_mut_method
+                .mock_raw(|a, b| MockResult::Return(format!("mocked {} {}", a.0, b)));
         }
 
         assert_eq!("mocked 2 true", struct_2.ref_mut_method(true));
@@ -145,7 +146,7 @@ mod and_method_is_val_method {
     #[test]
     fn and_return_mocked_then_returns_mocking_result() {
         unsafe {
-            Struct::val_method.mock_raw(|a, b| MockResult::Return(format!("mocked {} {}", a.0, b), ));
+            Struct::val_method.mock_raw(|a, b| MockResult::Return(format!("mocked {} {}", a.0, b)));
         }
 
         assert_eq!("mocked 2 true", Struct(2).val_method(true));

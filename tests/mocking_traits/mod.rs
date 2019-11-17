@@ -10,8 +10,8 @@ mod when_trait_regular_struct_regular_method_generic;
 mod when_trait_regular_struct_regular_method_regular;
 
 mod mocking_impls_of_traits_with_path {
-    use super::*;
     use self::trait_mod::Trait;
+    use super::*;
 
     struct Struct();
 

@@ -22,7 +22,7 @@ fn and_continue_mocked_then_runs_with_modified_args() {
 #[test]
 fn and_return_mocked_then_returns_mocking_result() {
     unsafe {
-        function.mock_raw(|a| MockResult::Return(format!("mocked {}", a),));
+        function.mock_raw(|a| MockResult::Return(format!("mocked {}", a)));
     }
 
     assert_eq!("mocked true", function(true));

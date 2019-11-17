@@ -33,15 +33,24 @@ impl MockStore {
     }
 
     pub unsafe fn add_to_thread_layer<I, O>(
-            &self, id: TypeId, mock: Box<dyn FnMut<I, Output=MockResult<I, O>> + 'static>) {
-        self.layers.borrow_mut().first_mut().expect("Thread mock level missing").add(id, mock);
+        &self,
+        id: TypeId,
+        mock: Box<dyn FnMut<I, Output = MockResult<I, O>> + 'static>,
+    ) {
+        self.layers
+            .borrow_mut()
+            .first_mut()
+            .expect("Thread mock level missing")
+            .add(id, mock);
     }
 
     pub unsafe fn call<I, O>(&self, id: TypeId, mut input: I) -> MockResult<I, O> {
         // Do not hold RefCell borrow while calling mock, it can try to modify mocks
         let layer_count = self.layers.borrow().len();
         for layer_idx in (0..layer_count).rev() {
-            let mock_opt = self.layers.borrow()
+            let mock_opt = self
+                .layers
+                .borrow()
                 .get(layer_idx)
                 .expect("Mock layer removed while iterating")
                 .get(id);
@@ -84,7 +93,11 @@ impl MockLayer {
         self.mocks.remove(&id);
     }
 
-    pub unsafe fn add<I, O>(&mut self, id: TypeId, mock: Box<dyn FnMut<I, Output=MockResult<I, O>> + 'static>) {
+    pub unsafe fn add<I, O>(
+        &mut self,
+        id: TypeId,
+        mock: Box<dyn FnMut<I, Output = MockResult<I, O>> + 'static>,
+    ) {
         let stored = StoredMock::new(mock).erase();
         self.mocks.insert(id, stored);
     }
@@ -114,13 +127,13 @@ impl ErasedStoredMock {
 /// Guarantees that while mock is running it's not overwritten, destroyed, or called again
 #[derive(Clone)]
 struct StoredMock<I, O> {
-    mock: Rc<RefCell<Box<dyn FnMut<I, Output=MockResult<I, O>>>>>
+    mock: Rc<RefCell<Box<dyn FnMut<I, Output = MockResult<I, O>>>>>,
 }
 
 impl<I, O> StoredMock<I, O> {
-    fn new(mock: Box<dyn FnMut<I, Output=MockResult<I, O>> + 'static>) -> Self {
+    fn new(mock: Box<dyn FnMut<I, Output = MockResult<I, O>> + 'static>) -> Self {
         StoredMock {
-            mock: Rc::new(RefCell::new(mock))
+            mock: Rc::new(RefCell::new(mock)),
         }
     }
 
