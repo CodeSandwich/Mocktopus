@@ -6,6 +6,7 @@ description = "Mocktopus procedural macros"
 readme = "crates_io_readme.md"
 repository = "https://github.com/CodeSandwich/Mocktopus"
 license = "MIT"
+edition = "2018"
 
 [lib]
 proc-macro = true
