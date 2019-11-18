@@ -5,8 +5,7 @@ use std::fmt::{Error, Formatter};
 use syn::punctuated::Punctuated;
 use syn::token::{Colon2, Semi};
 use syn::{
-    self, ArgCaptured, Block, Expr, ExprVerbatim, FnArg, FnDecl, GenericParam, Ident, Pat,
-    PatIdent, PathSegment, Stmt,
+    self, Block, Expr, FnArg, GenericParam, Pat, PatIdent, PatType, PathSegment, Signature, Stmt,
 };
 
 const MOCKTOPUS_CRATE_NAME: &str = "__mocktopus_crate__";
@@ -29,7 +28,7 @@ pub enum FnHeaderBuilder<'a> {
 }
 
 impl<'a> FnHeaderBuilder<'a> {
-    pub fn build(&self, fn_ident: &Ident, fn_decl: &FnDecl, fn_block_span: Span) -> Stmt {
+    pub fn build(&self, fn_decl: &Signature, fn_block_span: Span) -> Stmt {
         let fn_args = &fn_decl.inputs;
         let header_str = format!(
             r#"{{
@@ -52,7 +51,7 @@ impl<'a> FnHeaderBuilder<'a> {
 }}"#,
             mocktopus = MOCKTOPUS_CRATE_NAME,
             std_crate = STD_CRATE_NAME,
-            full_fn_name = display(|f| write_full_fn_name(f, self, fn_ident, fn_decl)),
+            full_fn_name = display(|f| write_full_fn_name(f, self, fn_decl)),
             extract_args = display(|f| write_extract_args(f, fn_args)),
             args_to_continue = ARGS_TO_CONTINUE_NAME,
             args_to_return = ARGS_TO_RETURN_NAME,
@@ -72,10 +71,7 @@ fn create_call_site_spanned_stmt(block: Block, span: Span) -> Stmt {
         .into_iter()
         .map(|tt| make_token_tree_span_call_site(tt, span))
         .collect();
-    Stmt::Semi(
-        Expr::Verbatim(ExprVerbatim { tts: token_stream }),
-        Semi([span]),
-    )
+    Stmt::Semi(Expr::Verbatim(token_stream), Semi { spans: [span] })
 }
 
 fn make_token_tree_span_call_site(mut token_tree: TokenTree, span: Span) -> TokenTree {
@@ -94,8 +90,7 @@ fn make_token_tree_span_call_site(mut token_tree: TokenTree, span: Span) -> Toke
 fn write_full_fn_name(
     f: &mut Formatter,
     builder: &FnHeaderBuilder,
-    fn_ident: &Ident,
-    fn_decl: &FnDecl,
+    fn_decl: &Signature,
 ) -> Result<(), Error> {
     match *builder {
         FnHeaderBuilder::StaticFn => (),
@@ -107,7 +102,7 @@ fn write_full_fn_name(
     write!(
         f,
         "{}::<{}>",
-        fn_ident,
+        fn_decl.ident,
         display(|f| write_fn_generics(f, fn_decl))
     )
 }
@@ -119,7 +114,7 @@ fn write_trait_path<T: ToTokens + Clone>(
     write!(f, "{}", path.into_token_stream())
 }
 
-fn write_fn_generics(f: &mut Formatter, fn_decl: &FnDecl) -> Result<(), Error> {
+fn write_fn_generics(f: &mut Formatter, fn_decl: &Signature) -> Result<(), Error> {
     fn_decl
         .generics
         .params
@@ -160,13 +155,14 @@ fn write_restore_args<T>(f: &mut Formatter, fn_args: &Punctuated<FnArg, T>) -> R
         writeln!(
             f,
             "{}::mem::swap(&mut *(&{} as *const _ as *mut _), &mut {}.{});",
-            STD_CRATE_NAME,
-            fn_arg_name,
-            ARGS_TO_CONTINUE_NAME,
-            fn_arg_index
+            STD_CRATE_NAME, fn_arg_name, ARGS_TO_CONTINUE_NAME, fn_arg_index
         )?;
     }
-    writeln!(f, "{}::mem::forget({});", STD_CRATE_NAME, ARGS_TO_CONTINUE_NAME)?;
+    writeln!(
+        f,
+        "{}::mem::forget({});",
+        STD_CRATE_NAME, ARGS_TO_CONTINUE_NAME
+    )?;
     writeln!(f, "}}")
 }
 
@@ -180,21 +176,19 @@ fn write_forget_args<T>(f: &mut Formatter, fn_args: &Punctuated<FnArg, T>) -> Re
 fn iter_fn_arg_names<'a, T>(
     input_args: &'a Punctuated<FnArg, T>,
 ) -> impl Iterator<Item = String> + 'a {
-    input_args.iter().map(|fn_arg| match *fn_arg {
-        FnArg::SelfRef(_) | FnArg::SelfValue(_) => "self".to_string(),
-        FnArg::Captured(ArgCaptured {
-            pat:
-                Pat::Ident(PatIdent {
-                    ref ident,
-                    subpat: None,
-                    ..
-                }),
-            ..
-        }) => ident.to_string(),
-        _ => panic!(
+    input_args.iter().map(|fn_arg| {
+        match fn_arg {
+            FnArg::Receiver(_) => return "self".to_string(),
+            FnArg::Typed(PatType { pat, .. }) => {
+                if let Pat::Ident(PatIdent { ident, .. }) = &**pat {
+                    return ident.to_string();
+                }
+            }
+        };
+        panic!(
             "{}: '{}'",
             error_msg!("invalid fn arg type"),
             fn_arg.clone().into_token_stream()
-        ),
+        )
     })
 }

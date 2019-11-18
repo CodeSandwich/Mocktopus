@@ -1,9 +1,9 @@
 use crate::header_builder::FnHeaderBuilder;
 use syn::punctuated::Punctuated;
-use syn::token::{Comma, Const, Unsafe};
+use syn::token::Comma;
 use syn::{
-    ArgCaptured, Attribute, Block, FnArg, FnDecl, Ident, ImplItem, ImplItemMethod, Item, ItemFn,
-    ItemImpl, ItemMod, ItemTrait, MethodSig, Pat, PatIdent, TraitItem, TraitItemMethod,
+    Attribute, Block, FnArg, Ident, ImplItem, ImplItemMethod, Item, ItemFn, ItemImpl, ItemMod,
+    ItemTrait, Pat, PatIdent, PatType, Signature, TraitItem, TraitItemMethod,
 };
 
 pub fn inject_item(item: &mut Item) {
@@ -20,10 +20,7 @@ fn inject_fn(item_fn: &mut ItemFn) {
     inject_any_fn(
         &FnHeaderBuilder::StaticFn,
         &item_fn.attrs,
-        &item_fn.constness,
-        &item_fn.unsafety,
-        &item_fn.ident,
-        &mut item_fn.decl,
+        &mut item_fn.sig,
         &mut *item_fn.block,
     );
 }
@@ -51,7 +48,7 @@ fn inject_trait(item_trait: &mut ItemTrait) {
             ..
         }) = *item
         {
-            inject_any_method(&FnHeaderBuilder::TraitDefault, attrs, sig, block);
+            inject_any_fn(&FnHeaderBuilder::TraitDefault, attrs, sig, block);
         }
     }
 }
@@ -67,7 +64,7 @@ fn inject_impl(item_impl: &mut ItemImpl) {
     for impl_item in &mut item_impl.items {
         if let ImplItem::Method(ref mut item_method) = *impl_item {
             if is_impl_fn_mockabile(&builder, item_method) {
-                inject_any_method(
+                inject_any_fn(
                     &builder,
                     &item_method.attrs,
                     &mut item_method.sig,
@@ -80,8 +77,7 @@ fn inject_impl(item_impl: &mut ItemImpl) {
 
 fn is_impl_fn_mockabile(builder: &FnHeaderBuilder, item_method: &ImplItemMethod) -> bool {
     if let FnHeaderBuilder::TraitImpl(ref segments) = *builder {
-        if let Some(pair) = segments.last() {
-            let segment = pair.value();
+        if let Some(segment) = segments.last() {
             if segment.arguments.is_empty() && segment.ident == "Drop" {
                 if item_method.sig.ident == "drop" {
                     return false;
@@ -92,57 +88,40 @@ fn is_impl_fn_mockabile(builder: &FnHeaderBuilder, item_method: &ImplItemMethod)
     true
 }
 
-fn inject_any_method(
-    builder: &FnHeaderBuilder,
-    attrs: &Vec<Attribute>,
-    sig: &mut MethodSig,
-    block: &mut Block,
-) {
-    inject_any_fn(
-        builder,
-        attrs,
-        &sig.constness,
-        &sig.unsafety,
-        &sig.ident,
-        &mut sig.decl,
-        block,
-    )
-}
-
 fn inject_any_fn(
     builder: &FnHeaderBuilder,
     attrs: &Vec<Attribute>,
-    constness: &Option<Const>,
-    unsafety: &Option<Unsafe>,
-    fn_name: &Ident,
-    fn_decl: &mut FnDecl,
+    fn_decl: &mut Signature,
     block: &mut Block,
 ) {
-    if constness.is_some()
-        || unsafety.is_some()
+    if fn_decl.constness.is_some()
+        || fn_decl.unsafety.is_some()
         || fn_decl.variadic.is_some()
         || is_not_mockable(attrs)
     {
         return;
     }
     unignore_fn_args(&mut fn_decl.inputs);
-    let header_stmt = builder.build(fn_name, fn_decl, block.brace_token.span);
+    let header_stmt = builder.build(fn_decl, block.brace_token.span);
     block.stmts.insert(0, header_stmt);
 }
 
 fn unignore_fn_args(inputs: &mut Punctuated<FnArg, Comma>) {
     for (i, fn_arg) in inputs.iter_mut().enumerate() {
-        if let FnArg::Captured(ArgCaptured { ref mut pat, .. }) = *fn_arg {
-            let span = match *pat {
-                Pat::Wild(ref pat_wild) => pat_wild.underscore_token.spans[0],
+        if let FnArg::Typed(PatType { ref mut pat, .. }) = *fn_arg {
+            let (span, attrs) = match **pat {
+                Pat::Wild(ref pat_wild) => {
+                    (pat_wild.underscore_token.spans[0], pat_wild.attrs.clone())
+                }
                 _ => continue,
             };
-            *pat = Pat::Ident(PatIdent {
+            *pat = Box::new(Pat::Ident(PatIdent {
                 by_ref: None,
                 mutability: None,
                 ident: Ident::new(&format!("__mocktopus_unignored_argument_{}__", i), span),
                 subpat: None,
-            })
+                attrs,
+            }));
         }
     }
 }
@@ -153,6 +132,6 @@ fn is_not_mockable(attrs: &Vec<Attribute>) -> bool {
     attrs
         .iter()
         .filter_map(|a| a.path.segments.last())
-        .map(|s| s.value().ident.to_string())
+        .map(|segment| segment.ident.to_string())
         .any(|i| INJECTOR_STOPPER_ATTRS.contains(&&*i))
 }
