@@ -5,7 +5,8 @@ use std::fmt::{Error, Formatter};
 use syn::punctuated::Punctuated;
 use syn::token::{Colon2, Semi};
 use syn::{
-    self, Block, Expr, FnArg, GenericParam, Pat, PatIdent, PatType, PathSegment, Signature, Stmt,
+    self, Expr, ExprUnsafe, FnArg, GenericParam, Pat, PatIdent, PatType, PathSegment, Signature,
+    Stmt,
 };
 
 const MOCKTOPUS_CRATE_NAME: &str = "__mocktopus_crate__";
@@ -31,24 +32,24 @@ impl<'a> FnHeaderBuilder<'a> {
     pub fn build(&self, fn_decl: &Signature, fn_block_span: Span) -> Stmt {
         let fn_args = &fn_decl.inputs;
         let header_str = format!(
-            r#"{{
-    extern crate mocktopus as {mocktopus};
-    extern crate std as {std_crate};
-    match {std_crate}::panic::catch_unwind({std_crate}::panic::AssertUnwindSafe (
-            || {mocktopus}::mocking::Mockable::call_mock(&{full_fn_name}, {extract_args}))) {{
-        Ok({mocktopus}::mocking::MockResult::Continue(mut {args_to_continue})) => {restore_args},
-        Ok({mocktopus}::mocking::MockResult::Return({args_to_return})) => {{
-            {forget_args}
-            let returned = unsafe {{ {std_crate}::mem::transmute_copy(&{args_to_return}) }};
-            {std_crate}::mem::forget({args_to_return});
-            return returned;
-        }},
-        Err({unwind}) => {{
-            {forget_args}
-            {std_crate}::panic::resume_unwind({unwind});
-        }},
-    }}
-}}"#,
+            r#"unsafe {{
+                extern crate mocktopus as {mocktopus};
+                extern crate std as {std_crate};
+                match {std_crate}::panic::catch_unwind({std_crate}::panic::AssertUnwindSafe (
+                        || {mocktopus}::mocking::Mockable::call_mock(&{full_fn_name}, {extract_args}))) {{
+                    Ok({mocktopus}::mocking::MockResult::Continue(mut {args_to_continue})) => {restore_args},
+                    Ok({mocktopus}::mocking::MockResult::Return({args_to_return})) => {{
+                        {forget_args}
+                        let returned = {std_crate}::mem::transmute_copy(&{args_to_return});
+                        {std_crate}::mem::forget({args_to_return});
+                        return returned;
+                    }},
+                    Err({unwind}) => {{
+                        {forget_args}
+                        {std_crate}::panic::resume_unwind({unwind});
+                    }},
+                }}
+            }}"#,
             mocktopus = MOCKTOPUS_CRATE_NAME,
             std_crate = STD_CRATE_NAME,
             full_fn_name = display(|f| write_full_fn_name(f, self, fn_decl)),
@@ -59,13 +60,13 @@ impl<'a> FnHeaderBuilder<'a> {
             forget_args = display(|f| write_forget_args(f, fn_args)),
             unwind = UNWIND_DATA_NAME
         );
-        let header_block =
-            syn::parse_str::<Block>(&header_str).expect(error_msg!("generated header unparsable"));
+        let header_block = syn::parse_str::<ExprUnsafe>(&header_str)
+            .expect(error_msg!("generated header unparsable"));
         create_call_site_spanned_stmt(header_block, fn_block_span)
     }
 }
 
-fn create_call_site_spanned_stmt(block: Block, span: Span) -> Stmt {
+fn create_call_site_spanned_stmt(block: impl ToTokens, span: Span) -> Stmt {
     let token_stream = block
         .into_token_stream()
         .into_iter()
@@ -135,7 +136,7 @@ fn write_extract_args<T>(f: &mut Formatter, fn_args: &Punctuated<FnArg, T>) -> R
     if fn_args.is_empty() {
         return write!(f, "()");
     }
-    write!(f, "unsafe {{ (")?;
+    write!(f, "(")?;
     for fn_arg_name in iter_fn_arg_names(fn_args) {
         write!(
             f,
@@ -143,14 +144,14 @@ fn write_extract_args<T>(f: &mut Formatter, fn_args: &Punctuated<FnArg, T>) -> R
             STD_CRATE_NAME, fn_arg_name
         )?;
     }
-    write!(f, ") }}")
+    write!(f, ")")
 }
 
 fn write_restore_args<T>(f: &mut Formatter, fn_args: &Punctuated<FnArg, T>) -> Result<(), Error> {
     if fn_args.is_empty() {
         return writeln!(f, "()");
     }
-    writeln!(f, "unsafe {{")?;
+    writeln!(f, "{{")?;
     for (fn_arg_index, fn_arg_name) in iter_fn_arg_names(fn_args).enumerate() {
         writeln!(
             f,
