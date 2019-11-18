@@ -12,6 +12,7 @@ use syn::{
 const MOCKTOPUS_CRATE_NAME: &str = "__mocktopus_crate__";
 const STD_CRATE_NAME: &str = "__mocktopus_std__";
 const ARGS_TO_CONTINUE_NAME: &str = "__mocktopus_args_to_continue__";
+const ARGS_TO_RETURN_NAME: &str = "__mocktopus_args_to_return__";
 const UNWIND_DATA_NAME: &str = "__mocktopus_unwind_data__";
 
 macro_rules! error_msg {
@@ -36,11 +37,11 @@ impl<'a> FnHeaderBuilder<'a> {
     extern crate std as {std_crate};
     match {std_crate}::panic::catch_unwind({std_crate}::panic::AssertUnwindSafe (
             || {mocktopus}::mocking::Mockable::call_mock(&{full_fn_name}, {extract_args}))) {{
-        Ok({mocktopus}::mocking::MockResult::Continue({args_to_continue})) => {restore_args},
-        Ok({mocktopus}::mocking::MockResult::Return(result)) => {{
+        Ok({mocktopus}::mocking::MockResult::Continue(mut {args_to_continue})) => {restore_args},
+        Ok({mocktopus}::mocking::MockResult::Return({args_to_return})) => {{
             {forget_args}
-            let returned = unsafe {{ {std_crate}::mem::transmute_copy(&result) }};
-            {std_crate}::mem::forget(result);
+            let returned = unsafe {{ {std_crate}::mem::transmute_copy(&{args_to_return}) }};
+            {std_crate}::mem::forget({args_to_return});
             return returned;
         }},
         Err({unwind}) => {{
@@ -54,6 +55,7 @@ impl<'a> FnHeaderBuilder<'a> {
             full_fn_name = display(|f| write_full_fn_name(f, self, fn_ident, fn_decl)),
             extract_args = display(|f| write_extract_args(f, fn_args)),
             args_to_continue = ARGS_TO_CONTINUE_NAME,
+            args_to_return = ARGS_TO_RETURN_NAME,
             restore_args = display(|f| write_restore_args(f, fn_args)),
             forget_args = display(|f| write_forget_args(f, fn_args)),
             unwind = UNWIND_DATA_NAME
@@ -157,15 +159,14 @@ fn write_restore_args<T>(f: &mut Formatter, fn_args: &Punctuated<FnArg, T>) -> R
     for (fn_arg_index, fn_arg_name) in iter_fn_arg_names(fn_args).enumerate() {
         writeln!(
             f,
-            "{}::mem::forget({}::mem::replace({}::mocking_utils::as_mut(&{}), {}.{}));",
+            "{}::mem::swap(&mut *(&{} as *const _ as *mut _), &mut {}.{});",
             STD_CRATE_NAME,
-            STD_CRATE_NAME,
-            MOCKTOPUS_CRATE_NAME,
             fn_arg_name,
             ARGS_TO_CONTINUE_NAME,
             fn_arg_index
         )?;
     }
+    writeln!(f, "{}::mem::forget({});", STD_CRATE_NAME, ARGS_TO_CONTINUE_NAME)?;
     writeln!(f, "}}")
 }
 
