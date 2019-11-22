@@ -1,3 +1,8 @@
+## 0.7.5 - 2019-11-22
+- Fix regression from 0.7.4
+- Fix potential name clash in generated code
+- Upgrade syn, quote and proc-macro2 to 1.0
+- Clean up macro code
 ## 0.7.4 - 2019-11-17
 - Fix UB while copying function input parameters (thank you @artemii235!)
 ## 0.7.3 - 2019-07-23
