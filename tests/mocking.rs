@@ -2,6 +2,7 @@ extern crate mocktopus;
 
 mod mocking_fns;
 mod mocking_methods;
+mod mocking_methods_async;
 mod mocking_trait_defaults;
 mod mocking_traits;
 
