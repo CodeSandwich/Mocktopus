@@ -278,7 +278,10 @@ fn inject_any_fn(
             }
         }
         fn_decl.generics.params.push(parse_quote!('mocktopus));
-        where_clause.predicates.push(parse_quote!(Self: 'mocktopus));
+
+        if let Context::Impl { .. } = context {
+            where_clause.predicates.push(parse_quote!(Self: 'mocktopus));
+        }
 
         let ret = match &fn_decl.output {
             ReturnType::Default => quote!(()),
