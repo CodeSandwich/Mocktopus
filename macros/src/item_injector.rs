@@ -5,15 +5,18 @@ use std::iter::FromIterator;
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
 use syn::{
-    parse_quote, Attribute, Block, FnArg, GenericParam, Ident, ImplItem, ImplItemMethod, Item,
-    ItemFn, ItemImpl, ItemMod, ItemTrait, Pat, PatIdent, PatType, Receiver, ReturnType, Signature,
-    TraitItem, TraitItemMethod, Type, Visibility, WhereClause,
+    parse_quote, Attribute, Block, FnArg, GenericParam, Generics, Ident, ImplItem, ImplItemMethod,
+    Item, ItemFn, ItemImpl, ItemMod, ItemTrait, Pat, PatIdent, PatType, Receiver, ReturnType,
+    Signature, TraitItem, TraitItemMethod, Type, Visibility, WhereClause,
 };
 
 #[derive(Clone, Copy)]
 enum Context<'a> {
     Trait,
-    Impl { receiver: &'a Type },
+    Impl {
+        receiver: &'a Type,
+        impl_generics: &'a Generics,
+    },
     Fn,
 }
 
@@ -78,6 +81,7 @@ fn inject_impl(item_impl: &mut ItemImpl) {
 
     let context = Context::Impl {
         receiver: &item_impl.self_ty,
+        impl_generics: &item_impl.generics,
     };
 
     for impl_item in &mut item_impl.items {
@@ -137,14 +141,31 @@ fn inject_any_fn(
                 }
             }
         });
+        let mut generics = fn_decl
+            .generics
+            .type_params()
+            .map(|param| param.ident.clone())
+            .collect::<Vec<_>>();
 
         for stmt in &mut block.stmts {
             replace_self_in_stmt(stmt);
         }
 
-        let mut sig = fn_decl.clone();
-        sig.ident = inner.clone();
-        match sig.inputs.iter_mut().next() {
+        let mut fn_inner = fn_decl.clone();
+        fn_inner.ident = inner.clone();
+
+        if let Context::Impl { impl_generics, .. } = context {
+            // declare impl generics on inner fn
+            fn_inner
+                .generics
+                .params
+                .extend(impl_generics.params.clone());
+
+            // add impl generics to inner call
+            generics.extend(impl_generics.type_params().map(|param| param.ident.clone()))
+        }
+
+        match fn_inner.inputs.iter_mut().next() {
             Some(
                 arg
                 @
@@ -184,7 +205,6 @@ fn inject_any_fn(
                 let under_self = Ident::new("_self", self_token.span);
                 match context {
                     Context::Impl { receiver, .. } => {
-                        // TODO: parse reference
                         *arg = parse_quote! {
                             #under_self: #mutability #receiver
                         };
@@ -195,16 +215,17 @@ fn inject_any_fn(
             _ => {}
         };
 
+        // this is the standalone async fn
         let func = ItemFn {
             attrs: attrs.clone(),
             vis: Visibility::Inherited,
-            sig,
+            sig: fn_inner,
             block: Box::new(block.clone()),
         };
 
         let brace = block.brace_token;
         let box_pin = quote_spanned!(brace.span=> {
-            Box::pin(#inner(#(#args),*))
+            Box::pin(#inner::<#(#generics),*>(#(#args),*))
         });
         *block = parse_quote!(#box_pin);
         block.brace_token = brace;
