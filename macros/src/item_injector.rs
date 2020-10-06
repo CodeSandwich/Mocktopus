@@ -145,6 +145,33 @@ fn inject_any_fn(
         let mut sig = fn_decl.clone();
         sig.ident = inner.clone();
         match sig.inputs.iter_mut().next() {
+            Some(
+                arg
+                @
+                FnArg::Receiver(Receiver {
+                    reference: Some(_), ..
+                }),
+            ) => {
+                let (self_token, mutability, lifetime) = match arg {
+                    FnArg::Receiver(Receiver {
+                        self_token,
+                        mutability,
+                        reference: Some((_, lifetime)),
+                        ..
+                    }) => (self_token, mutability, lifetime),
+                    _ => unreachable!(),
+                };
+                let under_self = Ident::new("_self", self_token.span);
+                match context {
+                    Context::Impl { receiver, .. } => {
+                        // TODO: parse reference
+                        *arg = parse_quote! {
+                            #under_self: &#lifetime #mutability #receiver
+                        };
+                    }
+                    _ => (),
+                };
+            }
             Some(arg @ FnArg::Receiver(_)) => {
                 let (self_token, mutability) = match arg {
                     FnArg::Receiver(Receiver {
@@ -159,7 +186,7 @@ fn inject_any_fn(
                     Context::Impl { receiver, .. } => {
                         // TODO: parse reference
                         *arg = parse_quote! {
-                            #mutability #under_self: &#receiver
+                            #under_self: #mutability #receiver
                         };
                     }
                     _ => (),
@@ -195,6 +222,26 @@ fn inject_any_fn(
             });
 
         match fn_decl.inputs.iter_mut().next() {
+            Some(
+                arg
+                @
+                FnArg::Receiver(Receiver {
+                    reference: Some(_), ..
+                }),
+            ) => {
+                let (self_token, mutability, lifetime) = match arg {
+                    FnArg::Receiver(Receiver {
+                        self_token,
+                        mutability,
+                        reference: Some((_, lifetime)),
+                        ..
+                    }) => (self_token, mutability, lifetime),
+                    _ => unreachable!(),
+                };
+                *arg = parse_quote! {
+                    &'life_self #lifetime #mutability #self_token
+                };
+            }
             Some(arg @ FnArg::Receiver(_)) => {
                 let (self_token, mutability) = match arg {
                     FnArg::Receiver(Receiver {
@@ -205,7 +252,7 @@ fn inject_any_fn(
                     _ => unreachable!(),
                 };
                 *arg = parse_quote! {
-                    &'life_self #mutability #self_token
+                    #mutability #self_token
                 };
             }
             _ => {}
@@ -294,8 +341,21 @@ fn replace_self_in_stmt(stmt: &mut syn::Stmt) {
 
 fn replace_self_in_expr(expr: &mut syn::Expr) {
     match expr {
+        syn::Expr::Assign(expr) => {
+            replace_self_in_expr(&mut expr.left);
+            replace_self_in_expr(&mut expr.right);
+        }
+        syn::Expr::AssignOp(expr) => {
+            replace_self_in_expr(&mut expr.left);
+            replace_self_in_expr(&mut expr.right);
+        }
         syn::Expr::Await(expr) => {
             replace_self_in_expr(&mut expr.base);
+        }
+        syn::Expr::Block(expr) => {
+            for stmt in &mut expr.block.stmts {
+                replace_self_in_stmt(stmt);
+            }
         }
         syn::Expr::Call(expr) => {
             replace_self_in_expr(&mut expr.func);
@@ -306,17 +366,8 @@ fn replace_self_in_expr(expr: &mut syn::Expr) {
         syn::Expr::Field(expr) => {
             replace_self_in_expr(&mut expr.base);
         }
-        syn::Expr::Block(expr) => {
-            for stmt in &mut expr.block.stmts {
-                replace_self_in_stmt(stmt);
-            }
-        }
         syn::Expr::Let(expr) => {
             replace_self_in_expr(&mut expr.expr);
-        }
-        syn::Expr::Assign(expr) => {
-            replace_self_in_expr(&mut expr.left);
-            replace_self_in_expr(&mut expr.right);
         }
         syn::Expr::Macro(expr) => {
             replace_self_in_token_stream(&mut expr.mac.tokens);
