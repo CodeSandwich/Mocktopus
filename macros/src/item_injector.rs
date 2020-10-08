@@ -127,11 +127,28 @@ fn inject_any_fn(
         return;
     }
 
-    // Transform async functions as `async-trait`
-    // See: https://github.com/dtolnay/async-trait
     if let Some(_) = fn_decl.asyncness {
-        let inner = format_ident!("__{}", fn_decl.ident);
-        let args = fn_decl.inputs.iter().enumerate().map(|(i, arg)| match arg {
+        inject_async_fn(context, attrs, fn_decl, block);
+    }
+
+    unignore_fn_args(&mut fn_decl.inputs);
+    let header_stmt = builder.build(fn_decl, block.brace_token.span);
+    block.stmts.insert(0, header_stmt);
+}
+
+// Transform async functions as `async-trait`
+// See: https://github.com/dtolnay/async-trait
+fn inject_async_fn(
+    context: Context,
+    attrs: &Vec<Attribute>,
+    outer_sig: &mut Signature,
+    block: &mut Block,
+) {
+    let args = outer_sig
+        .inputs
+        .iter()
+        .enumerate()
+        .map(|(i, arg)| match arg {
             FnArg::Receiver(Receiver { self_token, .. }) => quote!(#self_token),
             FnArg::Typed(arg) => {
                 if let Pat::Ident(PatIdent { ident, .. }) = &*arg.pat {
@@ -141,184 +158,178 @@ fn inject_any_fn(
                 }
             }
         });
-        let mut generics = fn_decl
+
+    let mut generics = outer_sig
+        .generics
+        .type_params()
+        .map(|param| param.ident.clone())
+        .collect::<Vec<_>>();
+
+    let mut inner_sig = outer_sig.clone();
+
+    let inner_ident = format_ident!("__{}", outer_sig.ident);
+    inner_sig.ident = inner_ident.clone();
+
+    if let Context::Impl { impl_generics, .. } = context {
+        // declare impl generics on inner fn
+        inner_sig
             .generics
-            .type_params()
-            .map(|param| param.ident.clone())
-            .collect::<Vec<_>>();
+            .params
+            .extend(impl_generics.params.clone());
 
-        for stmt in &mut block.stmts {
-            replace_self_in_stmt(stmt);
-        }
-
-        let mut fn_inner = fn_decl.clone();
-        fn_inner.ident = inner.clone();
-
-        if let Context::Impl { impl_generics, .. } = context {
-            // declare impl generics on inner fn
-            fn_inner
-                .generics
-                .params
-                .extend(impl_generics.params.clone());
-
-            // add impl generics to inner call
-            generics.extend(impl_generics.type_params().map(|param| param.ident.clone()))
-        }
-
-        match fn_inner.inputs.iter_mut().next() {
-            Some(
-                arg
-                @
-                FnArg::Receiver(Receiver {
-                    reference: Some(_), ..
-                }),
-            ) => {
-                let (self_token, mutability, lifetime) = match arg {
-                    FnArg::Receiver(Receiver {
-                        self_token,
-                        mutability,
-                        reference: Some((_, lifetime)),
-                        ..
-                    }) => (self_token, mutability, lifetime),
-                    _ => unreachable!(),
-                };
-                let under_self = Ident::new("_self", self_token.span);
-                match context {
-                    Context::Impl { receiver, .. } => {
-                        // TODO: parse reference
-                        *arg = parse_quote! {
-                            #under_self: &#lifetime #mutability #receiver
-                        };
-                    }
-                    _ => (),
-                };
-            }
-            Some(arg @ FnArg::Receiver(_)) => {
-                let (self_token, mutability) = match arg {
-                    FnArg::Receiver(Receiver {
-                        self_token,
-                        mutability,
-                        ..
-                    }) => (self_token, mutability),
-                    _ => unreachable!(),
-                };
-                let under_self = Ident::new("_self", self_token.span);
-                match context {
-                    Context::Impl { receiver, .. } => {
-                        *arg = parse_quote! {
-                            #under_self: #mutability #receiver
-                        };
-                    }
-                    _ => (),
-                };
-            }
-            _ => {}
-        };
-
-        // this is the standalone async fn
-        let func = ItemFn {
-            attrs: attrs.clone(),
-            vis: Visibility::Inherited,
-            sig: fn_inner,
-            block: Box::new(block.clone()),
-        };
-
-        let brace = block.brace_token;
-        let box_pin = quote_spanned!(brace.span=> {
-            Box::pin(#inner::<#(#generics),*>(#(#args),*))
-        });
-        *block = parse_quote!(#box_pin);
-        block.brace_token = brace;
-
-        block.stmts.insert(0, syn::Stmt::Item(Item::Fn(func)));
-
-        fn_decl.asyncness = None;
-
-        let where_clause = fn_decl
-            .generics
-            .where_clause
-            .get_or_insert_with(|| WhereClause {
-                where_token: Default::default(),
-                predicates: Punctuated::new(),
-            });
-
-        match fn_decl.inputs.iter_mut().next() {
-            Some(
-                arg
-                @
-                FnArg::Receiver(Receiver {
-                    reference: Some(_), ..
-                }),
-            ) => {
-                let (self_token, mutability, lifetime) = match arg {
-                    FnArg::Receiver(Receiver {
-                        self_token,
-                        mutability,
-                        reference: Some((_, lifetime)),
-                        ..
-                    }) => (self_token, mutability, lifetime),
-                    _ => unreachable!(),
-                };
-                *arg = parse_quote! {
-                    &'life_self #lifetime #mutability #self_token
-                };
-            }
-            Some(arg @ FnArg::Receiver(_)) => {
-                let (self_token, mutability) = match arg {
-                    FnArg::Receiver(Receiver {
-                        self_token,
-                        mutability,
-                        ..
-                    }) => (self_token, mutability),
-                    _ => unreachable!(),
-                };
-                *arg = parse_quote! {
-                    #mutability #self_token
-                };
-            }
-            _ => {}
-        };
-
-        fn_decl.generics.params.push(parse_quote!('life_self));
-
-        for param in fn_decl.generics.params.iter() {
-            match param {
-                GenericParam::Type(param) => {
-                    let param = &param.ident;
-                    where_clause
-                        .predicates
-                        .push(parse_quote!(#param: 'mocktopus));
-                }
-                GenericParam::Lifetime(param) => {
-                    let param = &param.lifetime;
-                    where_clause
-                        .predicates
-                        .push(parse_quote!(#param: 'mocktopus));
-                }
-                GenericParam::Const(_) => {}
-            }
-        }
-        fn_decl.generics.params.push(parse_quote!('mocktopus));
-
-        if let Context::Impl { .. } = context {
-            where_clause.predicates.push(parse_quote!(Self: 'mocktopus));
-        }
-
-        let ret = match &fn_decl.output {
-            ReturnType::Default => quote!(()),
-            ReturnType::Type(_, ret) => quote!(#ret),
-        };
-        let bounds = quote!(::core::marker::Send + 'mocktopus);
-        fn_decl.output = parse_quote! {
-            -> ::core::pin::Pin<Box<
-                dyn ::core::future::Future<Output = #ret> + #bounds
-            >>
-        };
+        // add impl generics to inner call
+        generics.extend(impl_generics.type_params().map(|param| param.ident.clone()))
     }
 
-    unignore_fn_args(&mut fn_decl.inputs);
-    let header_stmt = builder.build(fn_decl, block.brace_token.span);
-    block.stmts.insert(0, header_stmt);
+    match inner_sig.inputs.iter_mut().next() {
+        Some(
+            arg @ FnArg::Receiver(Receiver {
+                reference: Some(_), ..
+            }),
+        ) => {
+            let (self_token, mutability, lifetime) = match arg {
+                FnArg::Receiver(Receiver {
+                    self_token,
+                    mutability,
+                    reference: Some((_, lifetime)),
+                    ..
+                }) => (self_token, mutability, lifetime),
+                _ => unreachable!(),
+            };
+            let under_self = Ident::new("_self", self_token.span);
+            match context {
+                Context::Impl { receiver, .. } => {
+                    *arg = parse_quote! {
+                        #under_self: &#lifetime #mutability #receiver
+                    };
+                }
+                _ => (),
+            };
+        }
+        Some(arg @ FnArg::Receiver(_)) => {
+            let (self_token, mutability) = match arg {
+                FnArg::Receiver(Receiver {
+                    self_token,
+                    mutability,
+                    ..
+                }) => (self_token, mutability),
+                _ => unreachable!(),
+            };
+            let under_self = Ident::new("_self", self_token.span);
+            match context {
+                Context::Impl { receiver, .. } => {
+                    *arg = parse_quote! {
+                        #under_self: #mutability #receiver
+                    };
+                }
+                _ => (),
+            };
+        }
+        _ => {}
+    };
+
+    for stmt in &mut block.stmts {
+        replace_self_in_stmt(stmt);
+    }
+
+    // this is the standalone async fn
+    let inner_fn = ItemFn {
+        attrs: attrs.clone(),
+        vis: Visibility::Inherited,
+        sig: inner_sig,
+        block: Box::new(block.clone()),
+    };
+
+    // delegate call to async fn
+    let brace = block.brace_token;
+    let box_pin = quote_spanned!(brace.span=> {
+        Box::pin(#inner_ident::<#(#generics),*>(#(#args),*))
+    });
+    *block = parse_quote!(#box_pin);
+    block.brace_token = brace;
+
+    // insert standalone function at start
+    block.stmts.insert(0, syn::Stmt::Item(Item::Fn(inner_fn)));
+
+    let where_clause = outer_sig
+        .generics
+        .where_clause
+        .get_or_insert_with(|| WhereClause {
+            where_token: Default::default(),
+            predicates: Punctuated::new(),
+        });
+
+    match outer_sig.inputs.iter_mut().next() {
+        Some(
+            arg @ FnArg::Receiver(Receiver {
+                reference: Some(_), ..
+            }),
+        ) => {
+            let (self_token, mutability, lifetime) = match arg {
+                FnArg::Receiver(Receiver {
+                    self_token,
+                    mutability,
+                    reference: Some((_, lifetime)),
+                    ..
+                }) => (self_token, mutability, lifetime),
+                _ => unreachable!(),
+            };
+            *arg = parse_quote! {
+                &'life_self #lifetime #mutability #self_token
+            };
+        }
+        Some(arg @ FnArg::Receiver(_)) => {
+            let (self_token, mutability) = match arg {
+                FnArg::Receiver(Receiver {
+                    self_token,
+                    mutability,
+                    ..
+                }) => (self_token, mutability),
+                _ => unreachable!(),
+            };
+            *arg = parse_quote! {
+                #mutability #self_token
+            };
+        }
+        _ => {}
+    };
+
+    outer_sig.generics.params.push(parse_quote!('life_self));
+    for param in outer_sig.generics.params.iter() {
+        match param {
+            GenericParam::Type(param) => {
+                let param = &param.ident;
+                where_clause
+                    .predicates
+                    .push(parse_quote!(#param: 'mocktopus));
+            }
+            GenericParam::Lifetime(param) => {
+                let param = &param.lifetime;
+                where_clause
+                    .predicates
+                    .push(parse_quote!(#param: 'mocktopus));
+            }
+            GenericParam::Const(_) => {}
+        }
+    }
+    outer_sig.generics.params.push(parse_quote!('mocktopus));
+
+    if let Context::Impl { .. } = context {
+        where_clause.predicates.push(parse_quote!(Self: 'mocktopus));
+    }
+
+    outer_sig.asyncness = None;
+
+    let ret = match &outer_sig.output {
+        ReturnType::Default => quote!(()),
+        ReturnType::Type(_, ret) => quote!(#ret),
+    };
+    let bounds = quote!(::core::marker::Send + 'mocktopus);
+    outer_sig.output = parse_quote! {
+        -> ::core::pin::Pin<Box<
+            dyn ::core::future::Future<Output = #ret> + #bounds
+        >>
+    };
 }
 
 fn unignore_fn_args(inputs: &mut Punctuated<FnArg, Comma>) {
@@ -365,6 +376,11 @@ fn replace_self_in_stmt(stmt: &mut syn::Stmt) {
 
 fn replace_self_in_expr(expr: &mut syn::Expr) {
     match expr {
+        syn::Expr::Array(expr) => {
+            for elem in &mut expr.elems {
+                replace_self_in_expr(elem);
+            }
+        }
         syn::Expr::Assign(expr) => {
             replace_self_in_expr(&mut expr.left);
             replace_self_in_expr(&mut expr.right);
@@ -373,13 +389,25 @@ fn replace_self_in_expr(expr: &mut syn::Expr) {
             replace_self_in_expr(&mut expr.left);
             replace_self_in_expr(&mut expr.right);
         }
+        syn::Expr::Async(expr) => {
+            for stmt in &mut expr.block.stmts {
+                replace_self_in_stmt(stmt);
+            }
+        }
         syn::Expr::Await(expr) => {
             replace_self_in_expr(&mut expr.base);
+        }
+        syn::Expr::Binary(expr) => {
+            replace_self_in_expr(&mut expr.left);
+            replace_self_in_expr(&mut expr.right);
         }
         syn::Expr::Block(expr) => {
             for stmt in &mut expr.block.stmts {
                 replace_self_in_stmt(stmt);
             }
+        }
+        syn::Expr::Box(expr) => {
+            replace_self_in_expr(&mut expr.expr);
         }
         syn::Expr::Call(expr) => {
             replace_self_in_expr(&mut expr.func);
@@ -387,11 +415,37 @@ fn replace_self_in_expr(expr: &mut syn::Expr) {
                 replace_self_in_expr(arg);
             }
         }
+        syn::Expr::Cast(expr) => {
+            replace_self_in_expr(&mut expr.expr);
+        }
+        syn::Expr::Closure(expr) => {
+            replace_self_in_expr(&mut expr.body);
+        }
         syn::Expr::Field(expr) => {
             replace_self_in_expr(&mut expr.base);
         }
+        syn::Expr::ForLoop(expr) => {
+            replace_self_in_expr(&mut expr.expr);
+        }
+        syn::Expr::Group(expr) => {
+            replace_self_in_expr(&mut expr.expr);
+        }
+        syn::Expr::If(expr) => {
+            replace_self_in_expr(&mut expr.cond);
+            for stmt in &mut expr.then_branch.stmts {
+                replace_self_in_stmt(stmt);
+            }
+            if let Some((_, expr)) = &mut expr.else_branch {
+                replace_self_in_expr(expr);
+            }
+        }
         syn::Expr::Let(expr) => {
             replace_self_in_expr(&mut expr.expr);
+        }
+        syn::Expr::Loop(expr) => {
+            for stmt in &mut expr.body.stmts {
+                replace_self_in_stmt(stmt);
+            }
         }
         syn::Expr::Macro(expr) => {
             replace_self_in_token_stream(&mut expr.mac.tokens);
@@ -400,7 +454,70 @@ fn replace_self_in_expr(expr: &mut syn::Expr) {
                 replace_self_in_path(&mut attr.path);
             }
         }
+        syn::Expr::Match(expr) => {
+            replace_self_in_expr(&mut expr.expr);
+        }
+        syn::Expr::MethodCall(expr) => {
+            replace_self_in_expr(&mut expr.receiver);
+        }
+        syn::Expr::Paren(expr) => {
+            replace_self_in_expr(&mut expr.expr);
+        }
         syn::Expr::Path(expr) => replace_self_in_path(&mut expr.path),
+        syn::Expr::Range(expr) => {
+            if let Some(from) = &mut expr.from {
+                replace_self_in_expr(from);
+            }
+            if let Some(to) = &mut expr.to {
+                replace_self_in_expr(to);
+            }
+        }
+        syn::Expr::Reference(expr) => {
+            replace_self_in_expr(&mut expr.expr);
+        }
+        syn::Expr::Return(expr) => {
+            if let Some(ret) = &mut expr.expr {
+                replace_self_in_expr(ret);
+            }
+        }
+        syn::Expr::Struct(expr) => {
+            replace_self_in_path(&mut expr.path);
+            for field in &mut expr.fields {
+                replace_self_in_expr(&mut field.expr);
+            }
+        }
+        syn::Expr::Try(expr) => {
+            replace_self_in_expr(&mut expr.expr);
+        }
+        syn::Expr::TryBlock(expr) => {
+            for stmt in &mut expr.block.stmts {
+                replace_self_in_stmt(stmt);
+            }
+        }
+        syn::Expr::Tuple(expr) => {
+            for elem in &mut expr.elems {
+                replace_self_in_expr(elem);
+            }
+        }
+        syn::Expr::Unary(expr) => {
+            replace_self_in_expr(&mut expr.expr);
+        }
+        syn::Expr::Unsafe(expr) => {
+            for stmt in &mut expr.block.stmts {
+                replace_self_in_stmt(stmt);
+            }
+        }
+        syn::Expr::While(expr) => {
+            replace_self_in_expr(&mut expr.cond);
+            for stmt in &mut expr.body.stmts {
+                replace_self_in_stmt(stmt);
+            }
+        }
+        syn::Expr::Yield(expr) => {
+            if let Some(expr) = &mut expr.expr {
+                replace_self_in_expr(expr);
+            }
+        }
         _ => (),
     }
 }
