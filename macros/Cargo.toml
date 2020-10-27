@@ -1,7 +1,10 @@
 [package]
 name = "mocktopus_macros"
-version = "0.7.5"
-authors = ["CodeSandwich <igor.zuk@protonmail.com>"]
+version = "0.7.6"
+authors = [
+    "CodeSandwich <igor.zuk@protonmail.com>",
+    "gregdhill <gregorydhill@outlook.com>"
+]
 description = "Mocktopus procedural macros"
 readme = "crates_io_readme.md"
 repository = "https://github.com/CodeSandwich/Mocktopus"

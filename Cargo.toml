@@ -21,7 +21,7 @@ travis-ci = { repository = "CodeSandwich/Mocktopus" }
 doctest = false
 
 [dependencies]
-mocktopus_macros = { path = "macros"}
+mocktopus_macros = "=0.7.6"
 
 [dev-dependencies]
 tokio = { version = "0.2", features = ["full"] }
