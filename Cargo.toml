@@ -1,7 +1,10 @@
 [package]
 name = "mocktopus"
-version = "0.7.5"
-authors = ["CodeSandwich <igor.zuk@protonmail.com>"]
+version = "0.7.6"
+authors = [
+    "CodeSandwich <igor.zuk@protonmail.com>",
+    "gregdhill <gregorydhill@outlook.com>"
+]
 description = "Mocking framework for Rust"
 readme = "crates_io_readme.md"
 keywords = ["testing", "mocking", "tdd"]
