@@ -575,6 +575,15 @@ fn replace_self_in_token_stream(tokens: &mut TokenStream) {
                     out.push(TokenTree::Ident(ident));
                 }
             }
+            TokenTree::Group(group) => {
+                let delimiter = group.delimiter();
+                let mut token_stream = group.stream();
+                replace_self_in_token_stream(&mut token_stream);
+                out.push(TokenTree::Group(proc_macro2::Group::new(
+                    delimiter,
+                    token_stream,
+                )));
+            }
             other => out.push(other),
         }
     }

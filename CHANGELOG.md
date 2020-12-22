@@ -1,3 +1,5 @@
+## 0.7.8 - 2020-12-22
+- Fix async self substitution for call
 ## 0.7.7 - 2020-12-22
 - Transform async method with local binding
 - Fix missing lifetimes on async method refs
