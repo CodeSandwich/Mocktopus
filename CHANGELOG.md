@@ -1,3 +1,5 @@
+## 0.7.9 - 2020-12-22
+- Check all method call args in substitution
 ## 0.7.8 - 2020-12-22
 - Fix async self substitution for call
 ## 0.7.7 - 2020-12-22
