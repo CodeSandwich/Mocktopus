@@ -489,6 +489,9 @@ fn replace_self_in_expr(expr: &mut syn::Expr) {
         }
         syn::Expr::MethodCall(expr) => {
             replace_self_in_expr(&mut expr.receiver);
+            for arg in &mut expr.args {
+                replace_self_in_expr(arg);
+            }
         }
         syn::Expr::Paren(expr) => {
             replace_self_in_expr(&mut expr.expr);
