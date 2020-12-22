@@ -259,7 +259,8 @@ fn inject_async_fn(
             predicates: Punctuated::new(),
         });
 
-    match outer_sig.inputs.iter_mut().next() {
+    let mut outer_sig_inputs = outer_sig.inputs.iter_mut();
+    match outer_sig_inputs.next() {
         Some(
             arg @ FnArg::Receiver(Receiver {
                 reference: Some(_), ..
@@ -293,6 +294,30 @@ fn inject_async_fn(
         }
         _ => {}
     };
+
+    for input in outer_sig_inputs {
+        if let arg @ FnArg::Typed(_) = input {
+            if let FnArg::Typed(PatType {
+                pat,
+                colon_token,
+                ty,
+                ..
+            }) = arg
+            {
+                if let Type::Reference(syn::TypeReference {
+                    and_token,
+                    lifetime,
+                    mutability,
+                    elem,
+                }) = *ty.clone()
+                {
+                    *arg = parse_quote! {
+                        #pat #colon_token #and_token 'mocktopus #lifetime #mutability #elem
+                    };
+                }
+            }
+        }
+    }
 
     outer_sig.generics.params.push(parse_quote!('life_self));
     for param in outer_sig.generics.params.iter() {
@@ -370,6 +395,11 @@ fn replace_self_in_stmt(stmt: &mut syn::Stmt) {
     match stmt {
         syn::Stmt::Semi(expr, _) => replace_self_in_expr(expr),
         syn::Stmt::Expr(expr) => replace_self_in_expr(expr),
+        syn::Stmt::Local(local) => {
+            if let Some((_, expr)) = &mut local.init {
+                replace_self_in_expr(expr);
+            }
+        }
         _ => (),
     }
 }

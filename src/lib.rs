@@ -260,6 +260,23 @@
 //! }
 //! ```
 //!
+//! ## Mocking async
+//! Mocking async functions is almost exactly the same as non-async:
+//!
+//! ```
+//! #[cfg_attr(test, mockable)]
+//! async fn sleep(ms: u64) {
+//!     tokio::time::delay_for(std::time::Duration::from_millis(ms)).await;
+//! }
+//!
+//! #[tokio::test]
+//! async fn sleep_test() {
+//!     sleep.mock_safe(|_| MockResult::Return(Box::pin(async move { () })));
+//!
+//!     sleep(10000).await;
+//! }
+//! ```
+//!
 //! # Mocking tricks
 //! ## Returning reference to value created inside mock
 //!

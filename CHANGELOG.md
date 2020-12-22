@@ -1,3 +1,8 @@
+## 0.7.7 - 2020-12-22
+- Transform async method with local binding
+- Fix missing lifetimes on async method refs
+## 0.7.6 - 2020-10-23
+- Transform all async methods
 ## 0.7.5 - 2019-11-22
 - Fix regression from 0.7.4
 - Fix potential name clash in generated code
