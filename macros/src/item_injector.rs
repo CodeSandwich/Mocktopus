@@ -486,6 +486,9 @@ fn replace_self_in_expr(expr: &mut syn::Expr) {
         }
         syn::Expr::Match(expr) => {
             replace_self_in_expr(&mut expr.expr);
+            for arm in &mut expr.arms {
+                replace_self_in_expr(&mut arm.body);
+            }
         }
         syn::Expr::MethodCall(expr) => {
             replace_self_in_expr(&mut expr.receiver);
