@@ -260,59 +260,57 @@ fn inject_async_fn(
         });
 
     let mut outer_sig_inputs = outer_sig.inputs.iter_mut();
-    match outer_sig_inputs.next() {
-        Some(
-            arg @ FnArg::Receiver(Receiver {
+    while let Some(input) = outer_sig_inputs.next() {
+        match input {
+            arg
+            @ FnArg::Receiver(Receiver {
                 reference: Some(_), ..
-            }),
-        ) => {
-            let (self_token, mutability, lifetime) = match arg {
-                FnArg::Receiver(Receiver {
-                    self_token,
-                    mutability,
-                    reference: Some((_, lifetime)),
-                    ..
-                }) => (self_token, mutability, lifetime),
-                _ => unreachable!(),
-            };
-            *arg = parse_quote! {
-                &'life_self #lifetime #mutability #self_token
-            };
-        }
-        Some(arg @ FnArg::Receiver(_)) => {
-            let (self_token, mutability) = match arg {
-                FnArg::Receiver(Receiver {
-                    self_token,
-                    mutability,
-                    ..
-                }) => (self_token, mutability),
-                _ => unreachable!(),
-            };
-            *arg = parse_quote! {
-                #mutability #self_token
-            };
-        }
-        _ => {}
-    };
-
-    for input in outer_sig_inputs {
-        if let arg @ FnArg::Typed(_) = input {
-            if let FnArg::Typed(PatType {
-                pat,
-                colon_token,
-                ty,
-                ..
-            }) = arg
-            {
+            }) => {
+                let (self_token, mutability) = match arg {
+                    FnArg::Receiver(Receiver {
+                        self_token,
+                        mutability,
+                        reference: Some((_, _)),
+                        ..
+                    }) => (self_token, mutability),
+                    _ => unreachable!(),
+                };
+                *arg = parse_quote! {
+                    &'life_self #mutability #self_token
+                };
+            }
+            arg @ FnArg::Receiver(_) => {
+                let (self_token, mutability) = match arg {
+                    FnArg::Receiver(Receiver {
+                        self_token,
+                        mutability,
+                        ..
+                    }) => (self_token, mutability),
+                    _ => unreachable!(),
+                };
+                *arg = parse_quote! {
+                    #mutability #self_token
+                };
+            }
+            arg @ FnArg::Typed(_) => {
+                let (pat, colon_token, ty) = match arg {
+                    FnArg::Typed(PatType {
+                        pat,
+                        colon_token,
+                        ty,
+                        ..
+                    }) => (pat, colon_token, ty),
+                    _ => unreachable!(),
+                };
                 if let Type::Reference(syn::TypeReference {
                     and_token,
-                    lifetime,
+                    lifetime: _,
                     mutability,
                     elem,
                 }) = *ty.clone()
                 {
                     *arg = parse_quote! {
-                        #pat #colon_token #and_token 'mocktopus #lifetime #mutability #elem
+                        #pat #colon_token #and_token 'mocktopus #mutability #elem
                     };
                 }
             }
