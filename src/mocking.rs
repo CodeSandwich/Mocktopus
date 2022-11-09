@@ -1,5 +1,5 @@
 use crate::mock_store::{MockLayer, MockStore};
-use std::any::{Any, TypeId};
+use std::{any::{Any, TypeId}, marker::Tuple};
 use std::marker::PhantomData;
 use std::mem::transmute;
 
@@ -8,7 +8,7 @@ use std::mem::transmute;
 /// The trait is implemented for all functions, so its methods can be called on any function.
 ///
 /// Note: methods have any effect only if called on functions [annotated as mockable](https://docs.rs/mocktopus_macros).
-pub trait Mockable<T, O> {
+pub trait Mockable<T: Tuple, O> {
     /// Core function for setting up mocks
     ///
     /// Always consider using [mock_safe](#tymethod.mock_safe) or [MockContext](struct.MockContext.html).
@@ -97,7 +97,7 @@ pub fn clear_mocks() {
     MOCK_STORE.with(|mock_store| mock_store.clear())
 }
 
-impl<T, O, F: FnOnce<T, Output = O>> Mockable<T, O> for F {
+impl<T: Tuple, O, F: FnOnce<T, Output = O>> Mockable<T, O> for F {
     unsafe fn mock_raw<M: FnMut<T, Output = MockResult<T, O>>>(&self, mock: M) {
         let id = self.get_mock_id();
         let boxed = Box::new(mock) as Box<dyn FnMut<_, Output = _>>;
@@ -186,7 +186,7 @@ impl<'a> MockContext<'a> {
     ///
     /// This function doesn't actually mock the function.  It registers it as a
     /// function that will be mocked when [`run`](#method.run) is called.
-    pub fn mock_safe<I, O, F, M>(self, mockable: F, mock: M) -> Self
+    pub fn mock_safe<I: Tuple, O, F, M>(self, mockable: F, mock: M) -> Self
     where
         F: Mockable<I, O>,
         M: FnMut<I, Output = MockResult<I, O>> + 'a,
@@ -198,7 +198,7 @@ impl<'a> MockContext<'a> {
     ///
     /// This is an unsafe version of [`mock_safe`](#method.mock_safe),
     /// without lifetime constraint on mock
-    pub unsafe fn mock_raw<I, O, F, M>(mut self, mockable: F, mock: M) -> Self
+    pub unsafe fn mock_raw<I: Tuple, O, F, M>(mut self, mockable: F, mock: M) -> Self
     where
         F: Mockable<I, O>,
         M: FnMut<I, Output = MockResult<I, O>>,
