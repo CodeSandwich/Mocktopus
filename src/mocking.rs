@@ -1,6 +1,6 @@
 use crate::mock_store::{MockLayer, MockStore};
 use std::any::{Any, TypeId};
-use std::marker::PhantomData;
+use std::marker::{PhantomData, Tuple};
 use std::mem::transmute;
 
 /// Trait for setting up mocks
@@ -42,7 +42,9 @@ pub trait Mockable<T, O> {
     ///     assert_eq!("mocked", get_string(&Context::default()));
     /// }
     /// ```
-    unsafe fn mock_raw<M: FnMut<T, Output = MockResult<T, O>>>(&self, mock: M);
+    unsafe fn mock_raw<M: FnMut<T, Output = MockResult<T, O>>>(&self, mock: M)
+    where
+        T: Tuple;
 
     /// A safe variant of [mock_raw](#tymethod.mock_raw) for static closures
     ///
@@ -62,7 +64,9 @@ pub trait Mockable<T, O> {
     ///     assert_eq!("mocked", get_string());
     /// }
     /// ```
-    fn mock_safe<M: FnMut<T, Output = MockResult<T, O>> + 'static>(&self, mock: M);
+    fn mock_safe<M: FnMut<T, Output = MockResult<T, O>> + 'static>(&self, mock: M)
+    where
+        T: Tuple;
 
     /// Stop mocking this function.
     ///
@@ -97,7 +101,10 @@ pub fn clear_mocks() {
     MOCK_STORE.with(|mock_store| mock_store.clear())
 }
 
-impl<T, O, F: FnOnce<T, Output = O>> Mockable<T, O> for F {
+impl<T, O, F: FnOnce<T, Output = O>> Mockable<T, O> for F
+where
+    T: Tuple,
+{
     unsafe fn mock_raw<M: FnMut<T, Output = MockResult<T, O>>>(&self, mock: M) {
         let id = self.get_mock_id();
         let boxed = Box::new(mock) as Box<dyn FnMut<_, Output = _>>;
@@ -190,6 +197,7 @@ impl<'a> MockContext<'a> {
     where
         F: Mockable<I, O>,
         M: FnMut<I, Output = MockResult<I, O>> + 'a,
+        I: Tuple,
     {
         unsafe { self.mock_raw(mockable, mock) }
     }
@@ -202,6 +210,7 @@ impl<'a> MockContext<'a> {
     where
         F: Mockable<I, O>,
         M: FnMut<I, Output = MockResult<I, O>>,
+        I: Tuple,
     {
         let mock_box = Box::new(mock) as Box<dyn FnMut<_, Output = _>>;
         let mock_box_static: Box<dyn FnMut<I, Output = MockResult<I, O>> + 'static> =

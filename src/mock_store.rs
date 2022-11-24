@@ -2,6 +2,7 @@ use crate::mocking::MockResult;
 use std::any::TypeId;
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::marker::Tuple;
 use std::mem::transmute;
 use std::rc::Rc;
 
@@ -44,7 +45,10 @@ impl MockStore {
             .add(id, mock);
     }
 
-    pub unsafe fn call<I, O>(&self, id: TypeId, mut input: I) -> MockResult<I, O> {
+    pub unsafe fn call<I, O>(&self, id: TypeId, mut input: I) -> MockResult<I, O>
+    where
+        I: Tuple,
+    {
         // Do not hold RefCell borrow while calling mock, it can try to modify mocks
         let layer_count = self.layers.borrow().len();
         for layer_idx in (0..layer_count).rev() {
@@ -118,7 +122,10 @@ struct ErasedStoredMock {
 }
 
 impl ErasedStoredMock {
-    unsafe fn call<I, O>(self, input: I) -> MockLayerResult<I, O> {
+    unsafe fn call<I, O>(self, input: I) -> MockLayerResult<I, O>
+    where
+        I: Tuple,
+    {
         let unerased: StoredMock<I, O> = transmute(self.mock);
         unerased.call(input)
     }
@@ -137,7 +144,10 @@ impl<I, O> StoredMock<I, O> {
         }
     }
 
-    fn call(&self, input: I) -> MockLayerResult<I, O> {
+    fn call(&self, input: I) -> MockLayerResult<I, O>
+    where
+        I: Tuple,
+    {
         match self.mock.try_borrow_mut() {
             Ok(mut mock) => MockLayerResult::Handled(mock.call_mut(input)),
             Err(_) => MockLayerResult::Unhandled(input),

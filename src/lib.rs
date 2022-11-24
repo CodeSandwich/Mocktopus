@@ -1,4 +1,4 @@
-#![feature(fn_traits, unboxed_closures)]
+#![feature(fn_traits, unboxed_closures, tuple_trait)]
 
 //! Mocking framework for Rust (currently only nightly)
 //!
