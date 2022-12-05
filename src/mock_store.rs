@@ -1,5 +1,5 @@
 use crate::mocking::MockResult;
-use std::any::TypeId;
+use std::{any::TypeId, marker::Tuple};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::mem::transmute;
@@ -32,7 +32,7 @@ impl MockStore {
         self.layers.borrow_mut().pop();
     }
 
-    pub unsafe fn add_to_thread_layer<I, O>(
+    pub unsafe fn add_to_thread_layer<I: Tuple, O>(
         &self,
         id: TypeId,
         mock: Box<dyn FnMut<I, Output = MockResult<I, O>> + 'static>,
@@ -44,7 +44,7 @@ impl MockStore {
             .add(id, mock);
     }
 
-    pub unsafe fn call<I, O>(&self, id: TypeId, mut input: I) -> MockResult<I, O> {
+    pub unsafe fn call<I: Tuple, O>(&self, id: TypeId, mut input: I) -> MockResult<I, O> {
         // Do not hold RefCell borrow while calling mock, it can try to modify mocks
         let layer_count = self.layers.borrow().len();
         for layer_idx in (0..layer_count).rev() {
@@ -93,7 +93,7 @@ impl MockLayer {
         self.mocks.remove(&id);
     }
 
-    pub unsafe fn add<I, O>(
+    pub unsafe fn add<I: Tuple, O>(
         &mut self,
         id: TypeId,
         mock: Box<dyn FnMut<I, Output = MockResult<I, O>> + 'static>,
@@ -118,7 +118,7 @@ struct ErasedStoredMock {
 }
 
 impl ErasedStoredMock {
-    unsafe fn call<I, O>(self, input: I) -> MockLayerResult<I, O> {
+    unsafe fn call<I: Tuple, O>(self, input: I) -> MockLayerResult<I, O> {
         let unerased: StoredMock<I, O> = transmute(self.mock);
         unerased.call(input)
     }
@@ -126,11 +126,11 @@ impl ErasedStoredMock {
 
 /// Guarantees that while mock is running it's not overwritten, destroyed, or called again
 #[derive(Clone)]
-struct StoredMock<I, O> {
+struct StoredMock<I: Tuple, O> {
     mock: Rc<RefCell<Box<dyn FnMut<I, Output = MockResult<I, O>>>>>,
 }
 
-impl<I, O> StoredMock<I, O> {
+impl<I: Tuple, O> StoredMock<I, O> {
     fn new(mock: Box<dyn FnMut<I, Output = MockResult<I, O>> + 'static>) -> Self {
         StoredMock {
             mock: Rc::new(RefCell::new(mock)),
